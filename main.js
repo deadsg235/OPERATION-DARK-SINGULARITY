@@ -108,38 +108,45 @@ class Game {
             new THREE.BoxGeometry(0.15, 0.4, 1.2),
             new THREE.MeshLambertMaterial({ color: weapon.color })
         );
-        body.position.set(0.3, -0.3, -0.6);
+        body.position.set(0.4, -0.4, -0.8);
         
         // Barrel
         const barrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.03, 0.04, 0.8),
+            new THREE.CylinderGeometry(0.03, 0.04, 0.9),
             new THREE.MeshLambertMaterial({ color: 0x222222 })
         );
         barrel.rotation.z = Math.PI / 2;
-        barrel.position.set(0.3, -0.15, -1.0);
+        barrel.position.set(0.4, -0.25, -1.2);
         
         // Stock
         const stock = new THREE.Mesh(
             new THREE.BoxGeometry(0.12, 0.25, 0.6),
             new THREE.MeshLambertMaterial({ color: weapon.color })
         );
-        stock.position.set(0.25, -0.4, 0.1);
+        stock.position.set(0.35, -0.5, -0.1);
         
         // Grip
         const grip = new THREE.Mesh(
             new THREE.BoxGeometry(0.08, 0.3, 0.15),
             new THREE.MeshLambertMaterial({ color: 0x333333 })
         );
-        grip.position.set(0.28, -0.5, -0.3);
+        grip.position.set(0.38, -0.6, -0.5);
         
         // Scope/sight
         const sight = new THREE.Mesh(
             new THREE.BoxGeometry(0.05, 0.08, 0.2),
             new THREE.MeshLambertMaterial({ color: 0x666666 })
         );
-        sight.position.set(0.3, -0.05, -0.4);
+        sight.position.set(0.4, -0.15, -0.6);
         
-        this.weaponGroup.add(body, barrel, stock, grip, sight);
+        // Trigger guard
+        const trigger = new THREE.Mesh(
+            new THREE.BoxGeometry(0.02, 0.08, 0.06),
+            new THREE.MeshLambertMaterial({ color: 0x444444 })
+        );
+        trigger.position.set(0.38, -0.45, -0.45);
+        
+        this.weaponGroup.add(body, barrel, stock, grip, sight, trigger);
         this.camera.add(this.weaponGroup);
     }
     
@@ -251,19 +258,20 @@ class Game {
     updateWeaponTransform() {
         if (!this.weaponGroup) return;
         
-        const bobAmount = Math.sin(this.walkBob) * 0.02;
-        const swayDamping = 0.92;
+        const bobAmount = Math.sin(this.walkBob) * 0.015;
+        const swayDamping = 0.94;
         
         this.weaponSway.x *= swayDamping;
         this.weaponSway.y *= swayDamping;
         
         this.weaponGroup.position.set(
-            0.5 + this.weaponSway.x,
-            -0.8 + this.weaponSway.y + bobAmount,
-            -1.2
+            0.2 + this.weaponSway.x,
+            -0.3 + this.weaponSway.y + bobAmount,
+            -0.5
         );
         
-        this.weaponGroup.rotation.z = this.weaponSway.x * 0.5;
+        this.weaponGroup.rotation.z = this.weaponSway.x * 0.3;
+        this.weaponGroup.rotation.x = this.weaponSway.y * 0.2;
     }
     
     shoot() {
@@ -279,10 +287,9 @@ class Game {
         this.weaponSway.x += (Math.random() - 0.5) * 0.01;
         
         this.createMuzzleFlash();
-        this.createBulletTracer();
         this.screenShake();
         
-        // Raycast hit detection
+        // Raycast hit detection with improved collision
         const raycaster = new THREE.Raycaster();
         const pellets = weapon.name === 'Combat Shotgun' ? 6 : 1;
         
@@ -294,11 +301,28 @@ class Game {
                 -1
             ).normalize();
             
-            raycaster.set(this.camera.position, direction.applyQuaternion(this.camera.quaternion));
-            const intersects = raycaster.intersectObjects(this.enemies.map(e => e.mesh));
+            direction.applyQuaternion(this.camera.quaternion);
+            raycaster.set(this.camera.position, direction);
+            
+            // Create bullet trail
+            this.createBulletTrail(this.camera.position, direction);
+            
+            // Check all enemy parts for hits
+            const allEnemyMeshes = [];
+            this.enemies.forEach(enemy => {
+                enemy.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        child.userData.parentEnemy = enemy;
+                        allEnemyMeshes.push(child);
+                    }
+                });
+            });
+            
+            const intersects = raycaster.intersectObjects(allEnemyMeshes);
             
             if (intersects.length > 0) {
-                const enemy = this.enemies.find(e => e.mesh === intersects[0].object);
+                const hitMesh = intersects[0].object;
+                const enemy = hitMesh.userData.parentEnemy;
                 if (enemy) {
                     this.hitEnemy(enemy, weapon.damage, intersects[0].point);
                 }
@@ -327,26 +351,46 @@ class Game {
         setTimeout(() => this.scene.remove(flash), 80);
     }
     
-    createBulletTracer() {
-        const geometry = new THREE.BufferGeometry();
-        const start = this.camera.position.clone();
-        const forward = new THREE.Vector3(0, 0, -1);
-        forward.applyQuaternion(this.camera.quaternion);
-        const end = start.clone().add(forward.multiplyScalar(100));
+    createBulletTrail(start, direction) {
+        const end = start.clone().add(direction.clone().multiplyScalar(150));
         
+        // Main trail line
+        const geometry = new THREE.BufferGeometry();
         geometry.setFromPoints([start, end]);
         
-        const tracer = new THREE.Line(
+        const trail = new THREE.Line(
             geometry,
             new THREE.LineBasicMaterial({ 
-                color: 0x00ffff,
+                color: 0xffff00,
                 transparent: true,
-                opacity: 0.6
+                opacity: 0.8,
+                linewidth: 3
             })
         );
         
-        this.scene.add(tracer);
-        setTimeout(() => this.scene.remove(tracer), 50);
+        this.scene.add(trail);
+        
+        // Glowing effect
+        const glowGeometry = new THREE.BufferGeometry();
+        glowGeometry.setFromPoints([start, end]);
+        
+        const glow = new THREE.Line(
+            glowGeometry,
+            new THREE.LineBasicMaterial({ 
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.4,
+                linewidth: 6
+            })
+        );
+        
+        this.scene.add(glow);
+        
+        // Remove trails after short time
+        setTimeout(() => {
+            this.scene.remove(trail);
+            this.scene.remove(glow);
+        }, 80);
     }
     
     screenShake() {
