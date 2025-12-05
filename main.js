@@ -204,7 +204,7 @@ class Game {
     onMouseMove(event) {
         if (!this.locked) return;
         this.mouse.x += event.movementX * 0.002; // Mouse right -> camera right
-        this.mouse.y += event.movementY * 0.002; // Mouse up -> camera down (inverted Y)
+        this.mouse.y += event.movementY * 0.002; // Mouse up -> camera up
         this.mouse.y = Math.max(-Math.PI / 4, Math.min(Math.PI / 2, this.mouse.y));
     }
     
@@ -334,16 +334,16 @@ class Game {
         const allEnemyMeshes = this.enemies.flatMap(enemy => enemy.mesh.children);
         const intersects = raycaster.intersectObjects(allEnemyMeshes, true);
         
-        let targetPoint;
+        const targetPoint = new THREE.Vector3(); // Initialize targetPoint
         if (intersects.length > 0) {
             const hitMesh = intersects[0].object;
             const enemy = this.enemies.find(e => e.mesh.children.includes(hitMesh));
             if (enemy) {
                 this.hitEnemy(enemy, weapon.damage, intersects[0].point);
             }
-            targetPoint = intersects[0].point;
+            targetPoint.copy(intersects[0].point); // Copy the intersection point
         } else {
-            targetPoint = raycaster.ray.at(100);
+            raycaster.ray.at(100, targetPoint); // Write directly into targetPoint
         }
 
         const barrelPosition = new THREE.Vector3();
