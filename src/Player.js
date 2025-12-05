@@ -22,6 +22,12 @@ export class Player {
         this.setupEventListeners();
     }
     
+    setupEventListeners() {
+        document.addEventListener('keydown', (event) => this.onKeyDown(event));
+        document.addEventListener('keyup', (event) => this.onKeyUp(event));
+        document.addEventListener('mousemove', (event) => this.onMouseMove(event));
+    }
+    
 
     
     onKeyDown(event) {
