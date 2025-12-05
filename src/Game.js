@@ -57,25 +57,19 @@ export class Game {
     init() {
         // Setup renderer
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.setClearColor(0x000000);
+        this.renderer.setClearColor(0x222222);
         document.getElementById('gameContainer').appendChild(this.renderer.domElement);
         
-        // Setup scene
-        this.setupLighting();
-        this.createEnvironment();
+        // Minimal test scene
+        const geometry = new THREE.BoxGeometry();
+        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const cube = new THREE.Mesh(geometry, material);
+        this.scene.add(cube);
         
-        // Setup camera
-        this.camera.position.set(0, 5, 10);
-        this.camera.lookAt(0, 0, 0);
+        const light = new THREE.AmbientLight(0xffffff, 1);
+        this.scene.add(light);
         
-        // Add test cube to verify rendering
-        const testGeometry = new THREE.BoxGeometry(2, 2, 2);
-        const testMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
-        const testCube = new THREE.Mesh(testGeometry, testMaterial);
-        testCube.position.set(0, 1, 0);
-        this.scene.add(testCube);
+        this.camera.position.z = 5;
         
         // Setup event listeners
         this.setupEventListeners();
@@ -250,20 +244,6 @@ export class Game {
         if (!this.gameState.isPlaying) return;
         
         requestAnimationFrame(() => this.animate());
-        
-        const deltaTime = this.clock.getDelta();
-
-        // Update physics world
-        this.world.step(1/60, deltaTime, 3); // Fixed time step for physics
-        
-        // Update game systems
-        this.player.update(deltaTime);
-        this.enemyManager.update(deltaTime, this.camera.position);
-        this.weaponSystem.update(deltaTime);
-        this.particleSystem.update(deltaTime);
-        
-        // Check enemy collisions with player
-        this.checkEnemyCollisions();
         
         // Render
         this.renderer.render(this.scene, this.camera);
