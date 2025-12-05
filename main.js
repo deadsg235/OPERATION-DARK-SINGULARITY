@@ -8,9 +8,18 @@ class Game {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.world = new CANNON.World();
         
-        this.player = { health: 100, score: 0, ammo: 30, maxAmmo: 30 };
+        this.player = { health: 100, maxHealth: 100, score: 0, ammo: 30, maxAmmo: 30, shield: 50, maxShield: 50, weapon: 0 };
+        this.weapons = [
+            { name: 'Rifle', damage: 25, fireRate: 150, maxAmmo: 30, reloadTime: 2000 },
+            { name: 'Shotgun', damage: 60, fireRate: 800, maxAmmo: 8, reloadTime: 3000 },
+            { name: 'SMG', damage: 15, fireRate: 80, maxAmmo: 50, reloadTime: 1500 }
+        ];
+        this.powerups = [];
+        this.lastShot = 0;
+        this.reloading = false;
         this.enemies = [];
         this.keys = {};
+        this.gun = null;
         this.mouse = { x: 0, y: 0 };
         this.locked = false;
         
@@ -30,8 +39,10 @@ class Game {
         
         // Scene setup
         this.createEnvironment();
+        this.createGun();
         this.setupControls();
         this.setupLighting();
+        this.spawnPowerups();
         
         // Game loop
         this.animate();
@@ -72,6 +83,62 @@ class Game {
         // Player position
         this.camera.position.set(0, 2, 0);
     }
+    
+    createGun() {
+        const gunGroup = new THREE.Group();
+        
+        // Gun barrel
+        const barrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.08, 1.5),
+            new THREE.MeshLambertMaterial({ color: 0x333333 })
+        );
+        barrel.rotation.z = Math.PI / 2;
+        barrel.position.set(0.3, -0.3, -0.8);
+        
+        // Gun body
+        const body = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 0.2, 0.8),
+            new THREE.MeshLambertMaterial({ color: 0x444444 })
+        );
+        body.position.set(0.2, -0.4, -0.4);
+        
+        gunGroup.add(barrel, body);
+        this.camera.add(gunGroup);
+        this.gun = gunGroup;
+    }
+    
+    spawnPowerups() {
+        setInterval(() => {
+            if (this.powerups.length < 5) {
+                this.createPowerup();
+            }
+        }, 8000);
+    }
+    
+    createPowerup() {
+        const types = ['health', 'shield', 'ammo', 'weapon'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const colors = { health: 0x00ff00, shield: 0x0088ff, ammo: 0xffaa00, weapon: 0xff0088 };
+        
+        const powerup = {
+            mesh: new THREE.Mesh(
+                new THREE.OctahedronGeometry(0.5),
+                new THREE.MeshLambertMaterial({ color: colors[type] })
+            ),
+            type: type,
+            rotation: 0
+        };
+        
+        powerup.mesh.position.set(
+            (Math.random() - 0.5) * 60,
+            1,
+            (Math.random() - 0.5) * 60
+        );
+        
+        this.scene.add(powerup.mesh);
+        this.powerups.push(powerup);
+    }
+    
     
     setupLighting() {
         const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
@@ -126,16 +193,35 @@ class Game {
         direction.y = 0;
         this.camera.position.add(direction);
         
-        if (this.keys['KeyR'] && this.player.ammo < this.player.maxAmmo) {
+        if (this.keys['KeyR'] && this.player.ammo < this.player.maxAmmo && !this.reloading) {
             this.reload();
+        }
+        
+        if (this.keys['KeyQ']) {
+            this.switchWeapon();
+        }
+        
+        this.checkPowerupCollision();
+        
+        // Shield regeneration
+        if (this.player.shield < this.player.maxShield) {
+            this.player.shield = Math.min(this.player.maxShield, this.player.shield + 0.1);
         }
     }
     
     shoot() {
-        if (this.player.ammo <= 0) return;
+        const weapon = this.weapons[this.player.weapon];
+        if (this.player.ammo <= 0 || this.reloading || Date.now() - this.lastShot < weapon.fireRate) return;
         
+        this.lastShot = Date.now();
         this.player.ammo--;
         this.updateUI();
+        
+        // Gun recoil animation
+        if (this.gun) {
+            this.gun.position.z += 0.1;
+            setTimeout(() => this.gun.position.z -= 0.1, 50);
+        }
         
         // Muzzle flash effect
         this.createMuzzleFlash();
@@ -144,11 +230,24 @@ class Game {
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
         
-        const intersects = raycaster.intersectObjects(this.enemies.map(e => e.mesh));
-        if (intersects.length > 0) {
-            const enemy = this.enemies.find(e => e.mesh === intersects[0].object);
-            if (enemy) {
-                this.hitEnemy(enemy);
+        // Multiple pellets for shotgun
+        const pellets = weapon.name === 'Shotgun' ? 5 : 1;
+        for (let i = 0; i < pellets; i++) {
+            const spread = weapon.name === 'Shotgun' ? 0.1 : 0;
+            const direction = new THREE.Vector3(
+                (Math.random() - 0.5) * spread,
+                (Math.random() - 0.5) * spread,
+                -1
+            ).normalize();
+            
+            raycaster.set(this.camera.position, direction.applyQuaternion(this.camera.quaternion));
+            const intersects = raycaster.intersectObjects(this.enemies.map(e => e.mesh));
+            
+            if (intersects.length > 0) {
+                const enemy = this.enemies.find(e => e.mesh === intersects[0].object);
+                if (enemy) {
+                    this.hitEnemy(enemy, weapon.damage);
+                }
             }
         }
         
@@ -185,8 +284,13 @@ class Game {
         }, 50);
     }
     
-    hitEnemy(enemy) {
-        enemy.health -= 25;
+    hitEnemy(enemy, damage) {
+        enemy.health -= damage;
+        
+        // Drop ammo occasionally
+        if (Math.random() < 0.3) {
+            this.createAmmoDrop(enemy.mesh.position);
+        }
         
         // Hit effect
         const hitEffect = new THREE.Mesh(
@@ -275,26 +379,108 @@ class Game {
                 
                 // Attack if close
                 if (distToPlayer < 2) {
-                    this.player.health -= 1;
-                    this.updateUI();
-                    
-                    if (this.player.health <= 0) {
-                        this.gameOver();
-                    }
+                    this.takeDamage(1);
                 }
             }
         });
     }
     
     reload() {
-        this.player.ammo = this.player.maxAmmo;
+        if (this.reloading) return;
+        this.reloading = true;
+        
+        setTimeout(() => {
+            this.player.ammo = this.weapons[this.player.weapon].maxAmmo;
+            this.player.maxAmmo = this.weapons[this.player.weapon].maxAmmo;
+            this.reloading = false;
+            this.updateUI();
+        }, this.weapons[this.player.weapon].reloadTime);
+    }
+    
+    switchWeapon() {
+        this.player.weapon = (this.player.weapon + 1) % this.weapons.length;
+        this.player.maxAmmo = this.weapons[this.player.weapon].maxAmmo;
+        this.player.ammo = Math.min(this.player.ammo, this.player.maxAmmo);
         this.updateUI();
     }
     
+    createAmmoDrop(position) {
+        const ammoDrop = {
+            mesh: new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.3, 0.3),
+                new THREE.MeshLambertMaterial({ color: 0xffaa00 })
+            ),
+            type: 'ammo'
+        };
+        
+        ammoDrop.mesh.position.copy(position);
+        ammoDrop.mesh.position.y = 0.5;
+        this.scene.add(ammoDrop.mesh);
+        this.powerups.push(ammoDrop);
+    }
+    
+    checkPowerupCollision() {
+        this.powerups.forEach((powerup, index) => {
+            if (powerup.mesh.position.distanceTo(this.camera.position) < 2) {
+                this.collectPowerup(powerup);
+                this.scene.remove(powerup.mesh);
+                this.powerups.splice(index, 1);
+            }
+            
+            // Rotate powerups
+            powerup.rotation += 0.02;
+            powerup.mesh.rotation.y = powerup.rotation;
+        });
+    }
+    
+    collectPowerup(powerup) {
+        switch (powerup.type) {
+            case 'health':
+                this.player.health = Math.min(this.player.maxHealth, this.player.health + 30);
+                break;
+            case 'shield':
+                this.player.shield = this.player.maxShield;
+                break;
+            case 'ammo':
+                this.player.ammo = Math.min(this.player.maxAmmo, this.player.ammo + 15);
+                break;
+            case 'weapon':
+                this.switchWeapon();
+                break;
+        }
+        this.updateUI();
+    }
+    
+    takeDamage(damage) {
+        if (this.player.shield > 0) {
+            const shieldDamage = Math.min(this.player.shield, damage);
+            this.player.shield -= shieldDamage;
+            damage -= shieldDamage;
+        }
+        
+        if (damage > 0) {
+            this.player.health -= damage;
+        }
+        
+        this.updateUI();
+        
+        if (this.player.health <= 0) {
+            this.gameOver();
+        }
+    }
+    
     updateUI() {
-        document.getElementById('health').textContent = this.player.health;
+        document.getElementById('health').textContent = Math.floor(this.player.health);
         document.getElementById('score').textContent = this.player.score;
-        document.getElementById('ammo').textContent = `${this.player.ammo}/${this.player.maxAmmo}`;
+        
+        if (this.reloading) {
+            document.getElementById('ammo').textContent = 'RELOADING...';
+        } else {
+            document.getElementById('ammo').textContent = `${this.player.ammo}/${this.player.maxAmmo}`;
+        }
+        
+        document.getElementById('shield').textContent = Math.floor(this.player.shield);
+        document.getElementById('weapon').textContent = this.weapons[this.player.weapon].name;
     }
     
     gameOver() {
@@ -307,9 +493,18 @@ class Game {
         
         this.updatePlayer();
         this.updateEnemies();
+        this.updatePowerups();
         this.world.step(1/60);
         
         this.renderer.render(this.scene, this.camera);
+    }
+    
+    updatePowerups() {
+        this.powerups.forEach(powerup => {
+            powerup.rotation += 0.02;
+            powerup.mesh.rotation.y = powerup.rotation;
+            powerup.mesh.position.y = 1 + Math.sin(Date.now() * 0.003 + powerup.rotation) * 0.2;
+        });
     }
 }
 
