@@ -208,30 +208,30 @@ class Game {
 
         // Main frame
         const frame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.2), darkMetal);
-        frame.position.set(0.3, -0.25, -0.6);
+        frame.position.set(0, 0, 0);
         this.weaponGroup.add(frame);
 
         // Barrel
         const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 16), darkMetal);
         barrel.rotation.z = Math.PI / 2;
-        barrel.position.set(0.3, -0.2, -0.85);
+        barrel.position.set(0, 0.05, -0.25);
         this.weaponGroup.add(barrel);
 
         // Cylinder
         this.revolverCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 6), darkMetal);
         this.revolverCylinder.rotation.x = Math.PI / 2;
-        this.revolverCylinder.position.set(0.3, -0.25, -0.6);
+        this.revolverCylinder.position.set(0, 0, 0);
         this.weaponGroup.add(this.revolverCylinder);
 
         // Grip
         const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.1), gripMaterial);
-        grip.position.set(0.3, -0.4, -0.55);
+        grip.position.set(0, -0.15, 0.05);
         grip.rotation.z = -0.2;
         this.weaponGroup.add(grip);
         
         // Hammer
         const hammer = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.08), darkMetal);
-        hammer.position.set(0.3, -0.15, -0.5);
+        hammer.position.set(0, 0.1, 0.1);
         this.weaponGroup.add(hammer);
 
         this.camera.add(this.weaponGroup);
@@ -352,9 +352,9 @@ class Game {
         this.weaponSway.y *= swayDamping;
         
         this.weaponGroup.position.set(
-            0.2 + this.weaponSway.x,
-            -0.3 + this.weaponSway.y + bobAmount,
-            -0.5
+            0.3 + this.weaponSway.x,
+            -0.35 + this.weaponSway.y + bobAmount,
+            -0.6
         );
         
         this.weaponGroup.rotation.z = this.weaponSway.x * 0.3;
