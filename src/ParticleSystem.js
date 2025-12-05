@@ -40,14 +40,14 @@ export class ParticleSystem {
         const particles = new THREE.Points(geometry, material);
         this.scene.add(particles);
         
-        const splatter = { // Rename this locally to sparks
+        const splatter = {
             particles: particles,
             velocities: velocities,
             life: 1.0,
             maxLife: 1.0
         };
         
-        this.bloodSplatters.push(splatter);
+        this.sparksEffects.push(splatter);
     }
     
     createDebrisEffect(position, enemy) {
@@ -85,7 +85,7 @@ export class ParticleSystem {
                 life: 3.0
             };
             
-            this.goreEffects.push(debris); // Will rename goreEffects later
+            this.debrisEffects.push(debris);
         }
         
         // Create sparks

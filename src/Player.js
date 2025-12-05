@@ -85,10 +85,22 @@ export class Player {
         sideVector.crossVectors(this.camera.up, forwardVector);
         sideVector.normalize();
 
-        if (this.keys.forward) inputVelocity.vadd(forwardVector.multiplyScalar(-speed)); // Corrected forward
-        if (this.keys.backward) inputVelocity.vadd(forwardVector.multiplyScalar(speed));
-        if (this.keys.left) inputVelocity.vadd(sideVector.multiplyScalar(speed));
-        if (this.keys.right) inputVelocity.vadd(sideVector.multiplyScalar(-speed)); // Corrected strafe
+        if (this.keys.forward) {
+            const forward = new CANNON.Vec3(-forwardVector.x * speed, 0, -forwardVector.z * speed);
+            inputVelocity.vadd(forward);
+        }
+        if (this.keys.backward) {
+            const backward = new CANNON.Vec3(forwardVector.x * speed, 0, forwardVector.z * speed);
+            inputVelocity.vadd(backward);
+        }
+        if (this.keys.left) {
+            const left = new CANNON.Vec3(sideVector.x * speed, 0, sideVector.z * speed);
+            inputVelocity.vadd(left);
+        }
+        if (this.keys.right) {
+            const right = new CANNON.Vec3(-sideVector.x * speed, 0, -sideVector.z * speed);
+            inputVelocity.vadd(right);
+        }
 
         this.playerBody.velocity.x = inputVelocity.x;
         this.playerBody.velocity.z = inputVelocity.z;
