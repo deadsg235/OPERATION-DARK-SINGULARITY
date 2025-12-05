@@ -228,9 +228,10 @@ class Game {
         const rotatedMoveDirection = this.player.moveDirection.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
         this.player.model.position.add(rotatedMoveDirection);
 
+        // Player always faces camera direction
+        this.player.model.rotation.y = angle;
+
         if (this.player.isMoving) {
-            const targetAngle = Math.atan2(rotatedMoveDirection.x, rotatedMoveDirection.z);
-            this.player.model.rotation.y = THREE.MathUtils.lerp(this.player.model.rotation.y, targetAngle, 0.2);
             this.walkBob += 0.2;
         }
 
@@ -289,6 +290,9 @@ class Game {
             this.sound.play();
         });
 
+        // Gun recoil animation
+        this.gunRecoil();
+
         if (this.revolverCylinder) {
             this.revolverCylinder.rotation.y += Math.PI / 3;
         }
@@ -315,6 +319,18 @@ class Game {
         this.weaponGroup.getWorldPosition(barrelPosition);
         this.createBulletTrail(barrelPosition, targetPoint);
         this.createMuzzleFlash();
+    }
+
+    gunRecoil() {
+        const recoilAmount = -0.2;
+        const recoilDuration = 50;
+        const originalRotation = this.weaponGroup.rotation.x;
+        
+        this.weaponGroup.rotation.x += recoilAmount;
+        
+        setTimeout(() => {
+            this.weaponGroup.rotation.x = originalRotation;
+        }, recoilDuration);
     }
     
     createMuzzleFlash() {
