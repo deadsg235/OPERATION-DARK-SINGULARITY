@@ -312,14 +312,14 @@ class Game {
         // 2. Add a 'gunshot.mp3' file to it.
         // 3. Uncomment the block below.
         /*
-        const audioLoader = new THREE.AudioLoader();
-        audioLoader.load('/sounds/gunshot.mp3', (buffer) => {
-            if (this.sound.isPlaying) this.sound.stop();
-            this.sound.setBuffer(buffer);
-            this.sound.setLoop(false);
-            this.sound.setVolume(0.5);
-            this.sound.play();
-        });
+        // const audioLoader = new THREE.AudioLoader();
+        // audioLoader.load('/sounds/gunshot.mp3', (buffer) => {
+        //     if (this.sound.isPlaying) this.sound.stop();
+        //     this.sound.setBuffer(buffer);
+        //     this.sound.setLoop(false);
+        //     this.sound.setVolume(0.5);
+        //     this.sound.play();
+        // });
         */
 
         this.gunRecoil();
@@ -329,7 +329,9 @@ class Game {
         }
         
         const raycaster = new THREE.Raycaster();
+        console.log("Camera state before setFromCamera:", this.camera);
         raycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
+        console.log("Raycaster ray state after setFromCamera:", raycaster.ray);
 
         const allEnemyMeshes = this.enemies.flatMap(enemy => enemy.mesh.children);
         const intersects = raycaster.intersectObjects(allEnemyMeshes, true);
