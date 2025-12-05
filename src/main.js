@@ -4,13 +4,19 @@ import { Game } from './Game.js';
 let game;
 
 window.startGame = function() {
-    document.getElementById('menu').style.display = 'none';
-    game = new Game();
-    game.init();
-    game.start();
-    
-    // Request pointer lock for FPS controls
-    document.body.requestPointerLock();
+    try {
+        console.log('Starting game...');
+        document.getElementById('menu').style.display = 'none';
+        game = new Game();
+        console.log('Game created');
+        game.init();
+        console.log('Game initialized');
+        game.start();
+        console.log('Game started');
+    } catch (error) {
+        console.error('Game start error:', error);
+        alert('Error: ' + error.message);
+    }
 };
 
 // Handle pointer lock

@@ -55,24 +55,22 @@ export class Game {
     }
     
     init() {
-        // Setup renderer
+        console.log('Initializing renderer...');
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setClearColor(0x222222);
-        document.getElementById('gameContainer').appendChild(this.renderer.domElement);
         
-        // Minimal test scene
+        const container = document.getElementById('gameContainer');
+        console.log('Container found:', container);
+        container.appendChild(this.renderer.domElement);
+        console.log('Canvas appended');
+        
         const geometry = new THREE.BoxGeometry();
         const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const cube = new THREE.Mesh(geometry, material);
         this.scene.add(cube);
         
-        const light = new THREE.AmbientLight(0xffffff, 1);
-        this.scene.add(light);
-        
         this.camera.position.z = 5;
-        
-        // Setup event listeners
-        this.setupEventListeners();
+        console.log('Scene setup complete');
     }
     
     setupLighting() {
