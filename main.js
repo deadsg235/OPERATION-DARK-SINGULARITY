@@ -52,7 +52,7 @@ class Game {
         const groundBody = new CANNON.Body({ mass: 0 });
         groundBody.addShape(groundShape);
         groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-        this.world.add(groundBody);
+        this.world.addBody(groundBody);
         
         // Walls for boundaries
         for (let i = 0; i < 8; i++) {
