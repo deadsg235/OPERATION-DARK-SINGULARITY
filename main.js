@@ -65,35 +65,16 @@ class Game {
     }
 
     createPlayer() {
-        const playerGroup = new THREE.Group();
-        playerGroup.position.set(0, 1.8, 0);
-
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshLambertMaterial({ color: 0xcccccc }));
-        head.position.y = 1;
-        playerGroup.add(head);
-
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.4), new THREE.MeshLambertMaterial({ color: 0x555555 }));
-        playerGroup.add(torso);
-
-        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 0.2), new THREE.MeshLambertMaterial({ color: 0x777777 }));
-        leftArm.position.set(-0.5, 0.4, 0);
-        playerGroup.add(leftArm);
-
-        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 0.2), new THREE.MeshLambertMaterial({ color: 0x777777 }));
-        rightArm.position.set(0.5, 0.4, 0);
-        playerGroup.add(rightArm);
-
-        const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.2, 0.3), new THREE.MeshLambertMaterial({ color: 0x777777 }));
-        leftLeg.position.set(-0.25, -1.2, 0);
-        playerGroup.add(leftLeg);
-
-        const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.2, 0.3), new THREE.MeshLambertMaterial({ color: 0x777777 }));
-        rightLeg.position.set(0.25, -1.2, 0);
-        playerGroup.add(rightLeg);
-
-        this.player.model = playerGroup;
-        this.player.limbs = { head, torso, leftArm, rightArm, leftLeg, rightLeg };
+        // No visual player model in first-person view
+        this.player.model = new THREE.Group();
+        this.player.model.position.set(0, 1.8, 0);
         this.scene.add(this.player.model);
+
+        // Create a simple physics body for the player
+        const playerShape = new CANNON.Cylinder(0.5, 0.5, 2, 8);
+        this.player.body = new CANNON.Body({ mass: 5, shape: playerShape });
+        this.player.body.position.copy(this.player.model.position);
+        this.world.addBody(this.player.body);
     }
     
     createEnvironment() {
@@ -129,7 +110,7 @@ class Game {
 
     createWeapon() {
         if (this.weaponGroup) {
-            this.player.limbs.rightArm.remove(this.weaponGroup);
+            this.camera.remove(this.weaponGroup);
         }
         this.weaponGroup = new THREE.Group();
         const weapon = this.weapons[this.player.weapon];
@@ -145,8 +126,9 @@ class Game {
             this.weaponGroup.add(receiver);
         }
         
-        this.weaponGroup.position.set(0, -0.3, 0.3);
-        this.player.limbs.rightArm.add(this.weaponGroup);
+        this.weaponGroup.position.set(0.3, -0.3, -0.5);
+        this.weaponGroup.rotation.y = -Math.PI / 12;
+        this.camera.add(this.weaponGroup);
     }
 
     createRevolver() {
@@ -203,9 +185,9 @@ class Game {
     
     onMouseMove(event) {
         if (!this.locked) return;
-        this.mouse.x += event.movementX * 0.002; // Mouse right -> camera right
-        this.mouse.y -= event.movementY * 0.002; // Mouse up -> camera down (inverted Y)
-        this.mouse.y = Math.max(-Math.PI / 4, Math.min(Math.PI / 2, this.mouse.y));
+        this.camera.rotation.y -= event.movementX * 0.002;
+        this.camera.rotation.x -= event.movementY * 0.002;
+        this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
     }
     
     startShooting() { 
@@ -237,19 +219,16 @@ class Game {
         
         const moveDirection = new THREE.Vector3().add(forwardMove).add(rightMove);
 
-        this.player.model.position.add(moveDirection);
+        this.player.body.velocity.x = moveDirection.x * 10;
+        this.player.body.velocity.z = moveDirection.z * 10;
+        this.player.model.position.copy(this.player.body.position);
 
-        const cameraDirection = new THREE.Vector3();
-        this.camera.getWorldDirection(cameraDirection);
-        const angle = Math.atan2(cameraDirection.x, cameraDirection.z);
-        this.player.model.rotation.y = angle;
 
         if (this.player.isMoving) {
             this.walkBob += 0.2;
         }
 
         this.updateCamera();
-        this.animateLimbs();
 
         if (this.keys['KeyR'] && !this.reloading) this.reload();
         if (this.shooting) this.shoot();
@@ -258,32 +237,12 @@ class Game {
     }
 
     updateCamera() {
-        const targetPosition = this.player.model.position;
-        const cameraLookAt = new THREE.Vector3().copy(targetPosition).add(new THREE.Vector3(0, 1, 0));
-
-        const spherical = new THREE.Spherical().setFromVector3(this.cameraOffset);
-        spherical.theta = this.mouse.x;
-        spherical.phi = Math.PI / 2 - this.mouse.y;
-        const newCameraOffset = new THREE.Vector3().setFromSpherical(spherical);
-
-        const cameraPosition = new THREE.Vector3().copy(targetPosition).add(newCameraOffset);
-        
-        this.camera.position.lerp(cameraPosition, 0.1);
-        this.camera.lookAt(cameraLookAt);
+        this.camera.position.copy(this.player.model.position);
+        this.camera.position.y += 1.0; // Eye level
     }
 
     animateLimbs() {
-        if (this.player.isMoving) {
-            this.player.limbs.leftArm.rotation.x = Math.sin(this.walkBob) * 0.5;
-            this.player.limbs.rightArm.rotation.x = -Math.sin(this.walkBob) * 0.5;
-            this.player.limbs.leftLeg.rotation.x = -Math.sin(this.walkBob) * 0.5;
-            this.player.limbs.rightLeg.rotation.x = Math.sin(this.walkBob) * 0.5;
-        } else {
-            this.player.limbs.leftArm.rotation.x = 0;
-            this.player.limbs.rightArm.rotation.x = 0;
-            this.player.limbs.leftLeg.rotation.x = 0;
-            this.player.limbs.rightLeg.rotation.x = 0;
-        }
+        // No limbs to animate in first person
     }
     
     shoot() {
@@ -335,7 +294,7 @@ class Game {
     updateWeapon() {
         if (this.weaponGroup) {
             this.player.recoilAlpha = THREE.MathUtils.lerp(this.player.recoilAlpha, 0, 0.15);
-            this.weaponGroup.rotation.x = this.player.recoilAlpha * -this.player.recoilAmount;
+            this.weaponGroup.position.z = -0.5 - this.player.recoilAlpha * 0.2;
         }
     }
     
