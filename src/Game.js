@@ -67,7 +67,15 @@ export class Game {
         this.createEnvironment();
         
         // Setup camera
-        this.camera.position.set(0, 1.8, 0);
+        this.camera.position.set(0, 5, 10);
+        this.camera.lookAt(0, 0, 0);
+        
+        // Add test cube to verify rendering
+        const testGeometry = new THREE.BoxGeometry(2, 2, 2);
+        const testMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+        const testCube = new THREE.Mesh(testGeometry, testMaterial);
+        testCube.position.set(0, 1, 0);
+        this.scene.add(testCube);
         
         // Setup event listeners
         this.setupEventListeners();
@@ -75,12 +83,12 @@ export class Game {
     
     setupLighting() {
         // Ambient light
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+        const ambientLight = new THREE.AmbientLight(0x404040, 1.0);
         this.scene.add(ambientLight);
         
         // Directional light (sun)
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(50, 100, 50);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(10, 10, 5);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
