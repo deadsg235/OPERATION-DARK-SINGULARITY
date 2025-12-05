@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { Player } from './Player.js';
 import { EnemyManager } from './EnemyManager.js';
 import { WeaponSystem } from './WeaponSystem.js';
@@ -12,7 +13,20 @@ export class Game {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.clock = new THREE.Clock();
         
-        this.player = new Player(this.camera);
+        this.world = new CANNON.World({
+            gravity: new CANNON.Vec3(0, -9.82, 0) // m/s²
+        });
+
+        // Create player physics body
+        const playerShape = new CANNON.Capsule(0.5, 0.9); // Radius, height (total height 1.8)
+        this.playerBody = new CANNON.Body({
+            mass: 50,
+            position: new CANNON.Vec3(0, 1.8, 0), // Initial player position
+            shape: playerShape
+        });
+        this.world.addBody(this.playerBody);
+        
+        this.player = new Player(this.camera, this.playerBody);
         this.enemyManager = new EnemyManager(this.scene, this.takeDamage.bind(this));
         this.weaponSystem = new WeaponSystem(this.scene, this.camera);
         this.particleSystem = new ParticleSystem(this.scene);
@@ -96,6 +110,15 @@ export class Game {
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         this.scene.add(ground);
+
+        // Cannon.js ground body
+        const groundBody = new CANNON.Body({
+            mass: 0, // A mass of 0 means it's static
+            shape: new CANNON.Plane(),
+            position: new CANNON.Vec3(0, 0, 0)
+        });
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate to match Three.js ground
+        this.world.addBody(groundBody);
         
         // Walls and obstacles
         this.createWalls();
@@ -125,6 +148,15 @@ export class Game {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             this.scene.add(mesh);
+
+            // Cannon.js wall body
+            const wallShape = new CANNON.Box(new CANNON.Vec3(wall.w / 2, wall.h / 2, 5 / 2));
+            const wallBody = new CANNON.Body({
+                mass: 0, // Static body
+                shape: wallShape,
+                position: new CANNON.Vec3(wall.x, wall.h / 2, wall.z)
+            });
+            this.world.addBody(wallBody);
         });
     }
     
@@ -145,6 +177,15 @@ export class Game {
             crate.castShadow = true;
             crate.receiveShadow = true;
             this.scene.add(crate);
+
+            // Cannon.js crate body
+            const crateShape = new CANNON.Box(new CANNON.Vec3(size / 2, size / 2, size / 2));
+            const crateBody = new CANNON.Body({
+                mass: 0, // Static body
+                shape: crateShape,
+                position: new CANNON.Vec3(crate.position.x, crate.position.y, crate.position.z)
+            });
+            this.world.addBody(crateBody);
         }
     }
     
@@ -203,6 +244,9 @@ export class Game {
         requestAnimationFrame(() => this.animate());
         
         const deltaTime = this.clock.getDelta();
+
+        // Update physics world
+        this.world.step(1/60, deltaTime, 3); // Fixed time step for physics
         
         // Update game systems
         this.player.update(deltaTime);

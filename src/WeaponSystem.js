@@ -18,24 +18,66 @@ export class WeaponSystem {
     }
     
     createWeaponModel() {
-        // Create simple weapon model
         this.weaponGroup = new THREE.Group();
-        
-        // Barrel
-        const barrelGeometry = new THREE.CylinderGeometry(0.02, 0.03, 0.8, 8);
-        const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+
+        const metallicMaterial = new THREE.MeshStandardMaterial({
+            color: 0x555555,
+            metalness: 0.8,
+            roughness: 0.3
+        });
+        const barrelMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            metalness: 0.9,
+            roughness: 0.2
+        });
+        const accentMaterial = new THREE.MeshStandardMaterial({
+            color: 0x00ffff, // Cyan glow for cyber elements
+            emissive: 0x00ffff,
+            emissiveIntensity: 0.5
+        });
+
+        // Main Body/Frame
+        const bodyGeometry = new THREE.BoxGeometry(0.3, 0.2, 0.8);
+        const body = new THREE.Mesh(bodyGeometry, metallicMaterial);
+        body.position.set(0, -0.1, -0.2);
+        this.weaponGroup.add(body);
+
+        // Barrel (more pronounced)
+        const barrelGeometry = new THREE.CylinderGeometry(0.06, 0.08, 0.6, 8);
         const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
+        barrel.position.set(0, 0, 0.4);
         barrel.rotation.x = Math.PI / 2;
-        barrel.position.set(0.1, -0.3, -0.5);
-        this.weaponGroup.add(barrel);
-        
-        // Stock
-        const stockGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.4);
-        const stockMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-        const stock = new THREE.Mesh(stockGeometry, stockMaterial);
-        stock.position.set(0.05, -0.35, -0.2);
-        this.weaponGroup.add(stock);
-        
+        body.add(barrel);
+
+        // Handle/Grip
+        const handleGeometry = new THREE.BoxGeometry(0.2, 0.5, 0.15);
+        const handle = new THREE.Mesh(handleGeometry, metallicMaterial);
+        handle.position.set(0, -0.3, -0.4);
+        this.weaponGroup.add(handle);
+
+        // Cylinder (revolver part)
+        const cylinderGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.2, 6);
+        const cylinder = new THREE.Mesh(cylinderGeometry, metallicMaterial);
+        cylinder.position.set(0, 0, -0.1);
+        cylinder.rotation.x = Math.PI / 2;
+        body.add(cylinder);
+
+        // Scope/Sight (simple box)
+        const scopeGeometry = new THREE.BoxGeometry(0.1, 0.08, 0.3);
+        const scope = new THREE.Mesh(scopeGeometry, barrelMaterial);
+        scope.position.set(0, 0.1, 0.2);
+        body.add(scope);
+
+        // Cyber Accent (e.g., small light strip)
+        const accentGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.1);
+        const accent = new THREE.Mesh(accentGeometry, accentMaterial);
+        accent.position.set(0, 0.05, 0.1);
+        body.add(accent);
+
+        // Position the entire weapon group relative to the camera
+        this.weaponGroup.position.set(0.6, -0.4, -0.5); // Adjust these values for proper positioning
+        this.weaponGroup.rotation.y = Math.PI * 0.1;
+
         // Attach to camera
         this.camera.add(this.weaponGroup);
     }

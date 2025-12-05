@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 
 export class Player {
-    constructor(camera) {
+    constructor(camera, playerBody) {
         this.camera = camera;
+        this.playerBody = playerBody;
         this.velocity = new THREE.Vector3();
         this.direction = new THREE.Vector3();
         this.moveSpeed = 15;
@@ -71,31 +73,36 @@ export class Player {
         
         const speed = this.keys.shift ? this.moveSpeed * 2 : this.moveSpeed;
         
-        this.velocity.x = 0;
-        this.velocity.z = 0;
+        // Apply forces to playerBody
+        const inputVelocity = new CANNON.Vec3(0, 0, 0);
+
+        const forwardVector = new THREE.Vector3();
+        this.camera.getWorldDirection(forwardVector);
+        forwardVector.y = 0;
+        forwardVector.normalize();
+
+        const sideVector = new THREE.Vector3();
+        sideVector.crossVectors(this.camera.up, forwardVector);
+        sideVector.normalize();
+
+        if (this.keys.forward) inputVelocity.vadd(forwardVector.multiplyScalar(-speed)); // Corrected forward
+        if (this.keys.backward) inputVelocity.vadd(forwardVector.multiplyScalar(speed));
+        if (this.keys.left) inputVelocity.vadd(sideVector.multiplyScalar(speed));
+        if (this.keys.right) inputVelocity.vadd(sideVector.multiplyScalar(-speed)); // Corrected strafe
+
+        this.playerBody.velocity.x = inputVelocity.x;
+        this.playerBody.velocity.z = inputVelocity.z;
         
-        this.direction.z = Number(this.keys.forward) - Number(this.keys.backward); // W-S
-        this.direction.x = Number(this.keys.right) - Number(this.keys.left);    // D-A
-        this.direction.z = -this.direction.z; // Invert Z for correct forward/backward
-        this.direction.x = -this.direction.x; // Invert X for correct left/right strafing
-        this.direction.normalize();
+        // Synchronize camera with physics body
+        this.camera.position.copy(this.playerBody.position);
+        this.camera.position.y += 0.8; // Adjust camera height relative to body
         
-        if (this.keys.forward || this.keys.backward) {
-            this.velocity.add(this.getForwardVector().multiplyScalar(this.direction.z * speed * deltaTime));
-        }
+        // Keep player above ground, using physics now
+        // this.camera.position.y = Math.max(1.8, this.camera.position.y);
         
-        if (this.keys.left || this.keys.right) {
-            this.velocity.add(this.getSideVector().multiplyScalar(this.direction.x * speed * deltaTime));
-        }
-        
-        this.camera.position.add(this.velocity);
-        
-        // Keep player above ground
-        this.camera.position.y = Math.max(1.8, this.camera.position.y);
-        
-        // Boundary limits
-        this.camera.position.x = Math.max(-95, Math.min(95, this.camera.position.x));
-        this.camera.position.z = Math.max(-95, Math.min(95, this.camera.position.z));
+        // Boundary limits (handled by physics world boundaries now)
+        // this.camera.position.x = Math.max(-95, Math.min(95, this.camera.position.x));
+        // this.camera.position.z = Math.max(-95, Math.min(95, this.camera.position.z));
     }
     
     getForwardVector() {
