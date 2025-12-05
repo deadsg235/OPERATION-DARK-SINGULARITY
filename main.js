@@ -100,55 +100,96 @@ class Game {
     
     createWeapon() {
         this.weaponGroup = new THREE.Group();
-        
         const weapon = this.weapons[this.player.weapon];
-        
-        // Main gun body
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(0.15, 0.4, 1.2),
-            new THREE.MeshLambertMaterial({ color: weapon.color })
+
+        //
+        // === Receiver (main body) ===
+        //
+        const receiver = new THREE.Mesh(
+            new THREE.BoxGeometry(0.18, 0.22, 0.75),
+            new THREE.MeshStandardMaterial({ color: weapon.color, roughness: 0.5, metalness: 0.3 })
         );
-        body.position.set(0.4, -0.4, -0.8);
-        
-        // Barrel
-        const barrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.03, 0.04, 0.9),
-            new THREE.MeshLambertMaterial({ color: 0x222222 })
+        receiver.position.set(0.32, -0.29, -0.75);
+        this.weaponGroup.add(receiver);
+
+        //
+        // === Barrel ===
+        //
+        const barrelOuter = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 0.9, 16),
+            new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 })
         );
-        barrel.rotation.z = Math.PI / 2;
-        barrel.position.set(0.4, -0.25, -1.2);
-        
-        // Stock
-        const stock = new THREE.Mesh(
-            new THREE.BoxGeometry(0.12, 0.25, 0.6),
-            new THREE.MeshLambertMaterial({ color: weapon.color })
+        barrelOuter.rotation.z = Math.PI / 2;
+        barrelOuter.position.set(0.32, -0.24, -1.2);
+        this.weaponGroup.add(barrelOuter);
+
+        //
+        // === Handguard with grooves ===
+        //
+        const handguard = new THREE.Mesh(
+            new THREE.BoxGeometry(0.16, 0.18, 0.45),
+            new THREE.MeshStandardMaterial({ color: 0x1b1b1b, roughness: 0.8 })
         );
-        stock.position.set(0.35, -0.5, -0.1);
-        
-        // Grip
+        handguard.position.set(0.32, -0.33, -1.0);
+        this.weaponGroup.add(handguard);
+
+        //
+        // === Rail / Sight ===
+        //
+        const rail = new THREE.Mesh(
+            new THREE.BoxGeometry(0.12, 0.05, 0.28),
+            new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.4, metalness: 0.7 })
+        );
+        rail.position.set(0.32, -0.17, -0.50);
+        this.weaponGroup.add(rail);
+
+        const frontSight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.05, 0.06, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x222222 })
+        );
+        frontSight.position.set(0.32, -0.17, -1.05);
+        this.weaponGroup.add(frontSight);
+
+        //
+        // === Grip (angled foregrip style) ===
+        //
         const grip = new THREE.Mesh(
-            new THREE.BoxGeometry(0.08, 0.3, 0.15),
-            new THREE.MeshLambertMaterial({ color: 0x333333 })
+            new THREE.BoxGeometry(0.10, 0.25, 0.18),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
         );
-        grip.position.set(0.38, -0.6, -0.5);
-        
-        // Scope/sight
-        const sight = new THREE.Mesh(
-            new THREE.BoxGeometry(0.05, 0.08, 0.2),
-            new THREE.MeshLambertMaterial({ color: 0x666666 })
+        grip.position.set(0.35, -0.55, -0.55);
+        grip.rotation.x = Math.PI / 6;
+        this.weaponGroup.add(grip);
+
+        //
+        // === Magazine ===
+        //
+        const mag = new THREE.Mesh(
+            new THREE.BoxGeometry(0.12, 0.35, 0.22),
+            new THREE.MeshStandardMaterial({ color: 0x222222 })
         );
-        sight.position.set(0.4, -0.15, -0.6);
-        
-        // Trigger guard
-        const trigger = new THREE.Mesh(
-            new THREE.BoxGeometry(0.02, 0.08, 0.06),
-            new THREE.MeshLambertMaterial({ color: 0x444444 })
+        mag.position.set(0.33, -0.52, -0.85);
+        this.weaponGroup.add(mag);
+
+        //
+        // === Ejection port ===
+        //
+        const port = new THREE.Mesh(
+            new THREE.BoxGeometry(0.04, 0.08, 0.14),
+            new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.2 })
         );
-        trigger.position.set(0.38, -0.45, -0.45);
-        
-        this.weaponGroup.add(body, barrel, stock, grip, sight, trigger);
+        port.position.set(0.40, -0.30, -0.55);
+        this.weaponGroup.add(port);
+
+        //
+        // === Saved original positions for recoil/animation ===
+        //
+        this.weaponRestPos = this.weaponGroup.position.clone();
+        this.weaponRestRot = this.weaponGroup.rotation.clone();
+
         this.camera.add(this.weaponGroup);
     }
+
     
     setupLighting() {
         // Ambient lighting
