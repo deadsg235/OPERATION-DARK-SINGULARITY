@@ -1,0 +1,18 @@
+{
+  "name": "fps-gore-shooter",
+  "version": "1.0.0",
+  "description": "Fast-paced FPS with dismemberment system",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.158.0",
+    "cannon-es": "^0.20.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
