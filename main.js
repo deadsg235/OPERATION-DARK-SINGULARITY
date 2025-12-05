@@ -202,13 +202,13 @@ class Game {
     }
 
     createRevolver() {
+        this.weaponGroup = new THREE.Group();
         const weapon = this.weapons[this.player.weapon];
         const darkMetal = new THREE.MeshStandardMaterial({ color: weapon.color, roughness: 0.4, metalness: 0.8 });
         const gripMaterial = new THREE.MeshStandardMaterial({ color: 0x4a2a0a, roughness: 0.8 });
 
         // Main frame
         const frame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.2), darkMetal);
-        frame.position.set(0, 0, 0);
         this.weaponGroup.add(frame);
 
         // Barrel
@@ -220,7 +220,6 @@ class Game {
         // Cylinder
         this.revolverCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 6), darkMetal);
         this.revolverCylinder.rotation.x = Math.PI / 2;
-        this.revolverCylinder.position.set(0, 0, 0);
         this.weaponGroup.add(this.revolverCylinder);
 
         // Grip
@@ -233,6 +232,9 @@ class Game {
         const hammer = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.08), darkMetal);
         hammer.position.set(0, 0.1, 0.1);
         this.weaponGroup.add(hammer);
+
+        // Set a static, visible position for the entire group
+        this.weaponGroup.position.set(0.3, -0.35, -0.6);
 
         this.camera.add(this.weaponGroup);
     }
@@ -343,7 +345,7 @@ class Game {
     }
     
     updateWeaponTransform() {
-        if (!this.weaponGroup) return;
+        if (!this.weaponGroup || this.weapons[this.player.weapon].name === 'Heavy Revolver') return;
         
         const bobAmount = Math.sin(this.walkBob) * 0.015;
         const swayDamping = 0.94;
@@ -352,9 +354,9 @@ class Game {
         this.weaponSway.y *= swayDamping;
         
         this.weaponGroup.position.set(
-            0.3 + this.weaponSway.x,
-            -0.35 + this.weaponSway.y + bobAmount,
-            -0.6
+            0.2 + this.weaponSway.x,
+            -0.3 + this.weaponSway.y + bobAmount,
+            -0.5
         );
         
         this.weaponGroup.rotation.z = this.weaponSway.x * 0.3;
