@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 
 export class WeaponSystem {
-    constructor(scene, camera) {
+    constructor(scene, camera, audioManager) {
         this.scene = scene;
         this.camera = camera;
+        this.audioManager = audioManager;
         this.ammo = 30;
         this.maxAmmo = 30;
         this.isReloading = false;
@@ -40,10 +41,10 @@ export class WeaponSystem {
     }
     
     shoot() {
-        if (this.ammo <= 0 || this.isReloading) return;
+        if (this.ammo <= 0 || this.isReloading) return false;
         
         const currentTime = Date.now() / 1000;
-        if (currentTime - this.lastShotTime < this.fireRate) return;
+        if (currentTime - this.lastShotTime < this.fireRate) return false;
         
         this.ammo--;
         this.lastShotTime = currentTime;
@@ -59,6 +60,12 @@ export class WeaponSystem {
         
         // Screen shake
         this.screenShake();
+
+        if (this.audioManager) {
+            this.audioManager.playSound('gunshot');
+        }
+
+        return true;
     }
     
     weaponRecoil() {

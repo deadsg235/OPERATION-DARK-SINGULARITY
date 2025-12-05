@@ -13,7 +13,7 @@ export class Game {
         this.clock = new THREE.Clock();
         
         this.player = new Player(this.camera);
-        this.enemyManager = new EnemyManager(this.scene);
+        this.enemyManager = new EnemyManager(this.scene, this.takeDamage.bind(this));
         this.weaponSystem = new WeaponSystem(this.scene, this.camera);
         this.particleSystem = new ParticleSystem(this.scene);
         this.audioManager = new AudioManager();
@@ -27,6 +27,17 @@ export class Game {
         
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
+        
+        this.hitmarkerElement = document.getElementById('hitmarker');
+    }
+
+    showHitmarker() {
+        if (this.hitmarkerElement) {
+            this.hitmarkerElement.style.opacity = '1';
+            setTimeout(() => {
+                this.hitmarkerElement.style.opacity = '0';
+            }, 100); // Hitmarker visible for 100ms
+        }
     }
     
     init() {
@@ -141,8 +152,10 @@ export class Game {
         // Mouse events
         document.addEventListener('click', (event) => {
             if (this.gameState.isPlaying && document.pointerLockElement) {
-                this.weaponSystem.shoot();
-                this.checkHit();
+                const shotFired = this.weaponSystem.shoot();
+                if (shotFired) {
+                    this.checkHit();
+                }
             }
         });
         
@@ -162,9 +175,12 @@ export class Game {
             const enemy = intersects[0].object;
             const hitPoint = intersects[0].point;
             
-            // Create gore effect
-            this.particleSystem.createBloodSplatter(hitPoint);
-            this.particleSystem.createGoreEffect(hitPoint, enemy);
+            // Create robotic impact effect
+            this.particleSystem.createSparksEffect(hitPoint);
+            this.particleSystem.createDebrisEffect(hitPoint, enemy);
+
+            // Show hitmarker
+            this.showHitmarker();
             
             // Damage enemy
             this.enemyManager.damageEnemy(enemy, hitPoint);

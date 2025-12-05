@@ -4,11 +4,12 @@ export class ParticleSystem {
     constructor(scene) {
         this.scene = scene;
         this.particles = [];
-        this.bloodSplatters = [];
-        this.goreEffects = [];
+        this.sparksEffects = []; // Renamed from bloodSplatters
+        this.debrisEffects = []; // Renamed from goreEffects
+        this.smokeEffects = []; // New array for smoke effects
     }
     
-    createBloodSplatter(position) {
+    createSparksEffect(position) {
         const particleCount = 20;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
@@ -30,7 +31,7 @@ export class ParticleSystem {
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         
         const material = new THREE.PointsMaterial({
-            color: 0x8B0000,
+            color: 0xffffaa, // Yellowish-white for sparks
             size: 0.1,
             transparent: true,
             opacity: 1.0
@@ -39,7 +40,7 @@ export class ParticleSystem {
         const particles = new THREE.Points(geometry, material);
         this.scene.add(particles);
         
-        const splatter = {
+        const splatter = { // Rename this locally to sparks
             particles: particles,
             velocities: velocities,
             life: 1.0,
@@ -49,12 +50,14 @@ export class ParticleSystem {
         this.bloodSplatters.push(splatter);
     }
     
-    createGoreEffect(position, enemy) {
-        // Create meat chunks
+    createDebrisEffect(position, enemy) {
+        // Create metallic debris chunks
         for (let i = 0; i < 8; i++) {
-            const chunkGeometry = new THREE.SphereGeometry(0.05 + Math.random() * 0.1, 4, 3);
-            const chunkMaterial = new THREE.MeshLambertMaterial({ 
-                color: new THREE.Color().setHSL(0, 0.8, 0.2 + Math.random() * 0.3)
+            const chunkGeometry = Math.random() < 0.5 ? new THREE.BoxGeometry(0.1 + Math.random() * 0.1, 0.1 + Math.random() * 0.1, 0.1 + Math.random() * 0.1) : new THREE.CylinderGeometry(0.05 + Math.random() * 0.05, 0.05 + Math.random() * 0.05, 0.2 + Math.random() * 0.2, 8);
+            const chunkMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x888888, 
+                metalness: 0.9, 
+                roughness: 0.5 
             });
             const chunk = new THREE.Mesh(chunkGeometry, chunkMaterial);
             
@@ -67,7 +70,7 @@ export class ParticleSystem {
             
             this.scene.add(chunk);
             
-            const gore = {
+            const debris = {
                 mesh: chunk,
                 velocity: new THREE.Vector3(
                     (Math.random() - 0.5) * 15,
@@ -82,14 +85,14 @@ export class ParticleSystem {
                 life: 3.0
             };
             
-            this.goreEffects.push(gore);
+            this.goreEffects.push(debris); // Will rename goreEffects later
         }
         
-        // Create blood spray
-        this.createBloodSpray(position);
+        // Create sparks
+        this.createSparksEffect(position);
     }
     
-    createBloodSpray(position) {
+    createSmokeEffect(position) {
         const sprayCount = 50;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(sprayCount * 3);
@@ -115,7 +118,7 @@ export class ParticleSystem {
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         
         const material = new THREE.PointsMaterial({
-            color: 0x660000,
+            color: 0x333333, // Dark grey/black for smoke
             size: 0.05,
             transparent: true,
             opacity: 0.8
@@ -124,14 +127,14 @@ export class ParticleSystem {
         const spray = new THREE.Points(geometry, material);
         this.scene.add(spray);
         
-        const bloodSpray = {
+        const smoke = { // Renamed locally to smoke
             particles: spray,
             velocities: velocities,
             life: 2.0,
             maxLife: 2.0
         };
         
-        this.bloodSplatters.push(bloodSpray);
+        this.smokeEffects.push(smoke);
     }
     
     createExplosion(position) {
@@ -178,7 +181,7 @@ export class ParticleSystem {
     
     update(deltaTime) {
         // Update blood splatters
-        this.bloodSplatters = this.bloodSplatters.filter(splatter => {
+        this.sparksEffects = this.sparksEffects.filter(splatter => {
             splatter.life -= deltaTime;
             
             const positions = splatter.particles.geometry.attributes.position.array;
@@ -215,31 +218,60 @@ export class ParticleSystem {
         });
         
         // Update gore effects
-        this.goreEffects = this.goreEffects.filter(gore => {
-            gore.life -= deltaTime;
+        this.debrisEffects = this.debrisEffects.filter(debris => {
+            debris.life -= deltaTime;
             
             // Apply physics
-            gore.velocity.y -= 20 * deltaTime; // gravity
-            gore.mesh.position.add(gore.velocity.clone().multiplyScalar(deltaTime));
+            debris.velocity.y -= 20 * deltaTime; // gravity
+            debris.mesh.position.add(debris.velocity.clone().multiplyScalar(deltaTime));
             
             // Rotation
-            gore.mesh.rotation.x += gore.angularVelocity.x * deltaTime;
-            gore.mesh.rotation.y += gore.angularVelocity.y * deltaTime;
-            gore.mesh.rotation.z += gore.angularVelocity.z * deltaTime;
+            debris.mesh.rotation.x += debris.angularVelocity.x * deltaTime;
+            debris.mesh.rotation.y += debris.angularVelocity.y * deltaTime;
+            debris.mesh.rotation.z += debris.angularVelocity.z * deltaTime;
             
             // Ground collision
-            if (gore.mesh.position.y < 0) {
-                gore.mesh.position.y = 0;
-                gore.velocity.y = 0;
-                gore.velocity.multiplyScalar(0.3);
-                gore.angularVelocity.multiplyScalar(0.5);
+            if (debris.mesh.position.y < 0) {
+                debris.mesh.position.y = 0;
+                debris.velocity.y = 0;
+                debris.velocity.multiplyScalar(0.3);
+                debris.angularVelocity.multiplyScalar(0.5);
             }
             
             // Fade out
-            gore.mesh.material.opacity = Math.max(0, gore.life / 3.0);
+            debris.mesh.material.opacity = Math.max(0, debris.life / 3.0);
             
-            if (gore.life <= 0) {
-                this.scene.remove(gore.mesh);
+            if (debris.life <= 0) {
+                this.scene.remove(debris.mesh);
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Update smoke effects
+        this.smokeEffects = this.smokeEffects.filter(smoke => {
+            smoke.life -= deltaTime;
+            
+            const positions = smoke.particles.geometry.attributes.position.array;
+            
+            for (let i = 0; i < smoke.velocities.length; i++) {
+                const i3 = i * 3;
+                
+                // Apply gravity
+                smoke.velocities[i].y -= 10 * deltaTime; // Slightly less gravity for smoke
+                
+                // Update positions
+                positions[i3] += smoke.velocities[i].x * deltaTime;
+                positions[i3 + 1] += smoke.velocities[i].y * deltaTime;
+                positions[i3 + 2] += smoke.velocities[i].z * deltaTime;
+            }
+            
+            smoke.particles.geometry.attributes.position.needsUpdate = true;
+            smoke.particles.material.opacity = smoke.life / smoke.maxLife;
+            
+            if (smoke.life <= 0) {
+                this.scene.remove(smoke.particles);
                 return false;
             }
             

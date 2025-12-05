@@ -22,11 +22,7 @@ export class Player {
         this.setupEventListeners();
     }
     
-    setupEventListeners() {
-        document.addEventListener('keydown', (event) => this.onKeyDown(event));
-        document.addEventListener('keyup', (event) => this.onKeyUp(event));
-        document.addEventListener('mousemove', (event) => this.onMouseMove(event));
-    }
+
     
     onKeyDown(event) {
         switch (event.code) {
@@ -72,8 +68,10 @@ export class Player {
         this.velocity.x = 0;
         this.velocity.z = 0;
         
-        this.direction.z = Number(this.keys.forward) - Number(this.keys.backward);
-        this.direction.x = Number(this.keys.right) - Number(this.keys.left);
+        this.direction.z = Number(this.keys.forward) - Number(this.keys.backward); // W-S
+        this.direction.x = Number(this.keys.right) - Number(this.keys.left);    // D-A
+        this.direction.z = -this.direction.z; // Invert Z for correct forward/backward
+        this.direction.x = -this.direction.x; // Invert X for correct left/right strafing
         this.direction.normalize();
         
         if (this.keys.forward || this.keys.backward) {
