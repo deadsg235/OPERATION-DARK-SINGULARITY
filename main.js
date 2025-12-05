@@ -8,12 +8,18 @@ class Game {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.world = new CANNON.World();
         
+        // Audio setup
+        this.listener = new THREE.AudioListener();
+        this.camera.add(this.listener);
+        this.sound = new THREE.Audio(this.listener);
+
         this.player = { 
-            health: 100, maxHealth: 100, score: 0, ammo: 30, maxAmmo: 30, 
+            health: 100, maxHealth: 100, score: 0, ammo: 6, maxAmmo: 6, 
             shield: 100, maxShield: 100, weapon: 0, kills: 0
         };
         
         this.weapons = [
+            { name: 'Heavy Revolver', damage: 75, fireRate: 450, maxAmmo: 6, reloadTime: 3000, color: 0x3d3d3d },
             { name: 'Assault Rifle', damage: 35, fireRate: 120, maxAmmo: 30, reloadTime: 2500, color: 0x444444 },
             { name: 'Combat Shotgun', damage: 80, fireRate: 600, maxAmmo: 8, reloadTime: 3200, color: 0x8B4513 },
             { name: 'SMG', damage: 22, fireRate: 60, maxAmmo: 40, reloadTime: 1800, color: 0x2F4F4F }
@@ -97,10 +103,15 @@ class Game {
         
         this.camera.position.set(0, 1.8, 0);
     }
-    
+
     createWeapon() {
         this.weaponGroup = new THREE.Group();
         const weapon = this.weapons[this.player.weapon];
+
+        if (weapon.name === 'Heavy Revolver') {
+            this.createRevolver();
+            return;
+        }
 
         //
         // === Receiver (main body) ===
@@ -190,6 +201,41 @@ class Game {
         this.camera.add(this.weaponGroup);
     }
 
+    createRevolver() {
+        const weapon = this.weapons[this.player.weapon];
+        const darkMetal = new THREE.MeshStandardMaterial({ color: weapon.color, roughness: 0.4, metalness: 0.8 });
+        const gripMaterial = new THREE.MeshStandardMaterial({ color: 0x4a2a0a, roughness: 0.8 });
+
+        // Main frame
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.2), darkMetal);
+        frame.position.set(0.3, -0.25, -0.6);
+        this.weaponGroup.add(frame);
+
+        // Barrel
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 16), darkMetal);
+        barrel.rotation.z = Math.PI / 2;
+        barrel.position.set(0.3, -0.2, -0.85);
+        this.weaponGroup.add(barrel);
+
+        // Cylinder
+        this.revolverCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 6), darkMetal);
+        this.revolverCylinder.rotation.x = Math.PI / 2;
+        this.revolverCylinder.position.set(0.3, -0.25, -0.6);
+        this.weaponGroup.add(this.revolverCylinder);
+
+        // Grip
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.1), gripMaterial);
+        grip.position.set(0.3, -0.4, -0.55);
+        grip.rotation.z = -0.2;
+        this.weaponGroup.add(grip);
+        
+        // Hammer
+        const hammer = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.08), darkMetal);
+        hammer.position.set(0.3, -0.15, -0.5);
+        this.weaponGroup.add(hammer);
+
+        this.camera.add(this.weaponGroup);
+    }
     
     setupLighting() {
         // Ambient lighting
@@ -322,10 +368,25 @@ class Game {
         this.lastShot = Date.now();
         this.player.ammo--;
         this.updateUI();
+
+        // Play gunshot sound (you need to load a sound file)
+         const audioLoader = new THREE.AudioLoader();
+         audioLoader.load('/sounds/gunshot.mp3', (buffer) => {
+             this.sound.setBuffer(buffer);
+             this.sound.setLoop(false);
+             this.sound.setVolume(0.5);
+             this.sound.play();
+         });
         
-        // Weapon recoil
-        this.weaponSway.y -= 0.02;
-        this.weaponSway.x += (Math.random() - 0.5) * 0.01;
+        // --- PUNCHY RECOIL ---
+        // Sharp upward kick
+        this.camera.rotation.x -= 0.05; 
+        // Random side-to-side kick
+        this.camera.rotation.y += (Math.random() - 0.5) * 0.01;
+
+        if (this.revolverCylinder) {
+            this.revolverCylinder.rotation.y += Math.PI / 3; // Rotate cylinder
+        }
         
         this.createMuzzleFlash();
         this.screenShake();
@@ -372,24 +433,20 @@ class Game {
     }
     
     createMuzzleFlash() {
-        const flash = new THREE.Mesh(
-            new THREE.SphereGeometry(0.3),
-            new THREE.MeshBasicMaterial({ 
-                color: 0xffff88,
-                transparent: true,
-                opacity: 0.8
-            })
-        );
+        const flash = new THREE.PointLight(0xffaa33, 2, 10);
         
-        const flashPos = this.camera.position.clone();
         const forward = new THREE.Vector3(0, 0, -1);
         forward.applyQuaternion(this.camera.quaternion);
-        flashPos.add(forward.multiplyScalar(1.5));
+        
+        // Position flash at the end of the gun barrel
+        const weaponPos = this.weaponGroup.position.clone();
+        const flashPos = this.camera.localToWorld(weaponPos);
+        flashPos.add(forward.multiplyScalar(0.5));
         
         flash.position.copy(flashPos);
         this.scene.add(flash);
         
-        setTimeout(() => this.scene.remove(flash), 80);
+        setTimeout(() => this.scene.remove(flash), 60);
     }
     
     createBulletTrail(start, direction) {
@@ -404,45 +461,29 @@ class Game {
             new THREE.LineBasicMaterial({ 
                 color: 0xffff00,
                 transparent: true,
-                opacity: 0.8,
-                linewidth: 3
+                opacity: 0.6,
+                linewidth: 2
             })
         );
         
         this.scene.add(trail);
         
-        // Glowing effect
-        const glowGeometry = new THREE.BufferGeometry();
-        glowGeometry.setFromPoints([start, end]);
-        
-        const glow = new THREE.Line(
-            glowGeometry,
-            new THREE.LineBasicMaterial({ 
-                color: 0x00ffff,
-                transparent: true,
-                opacity: 0.4,
-                linewidth: 6
-            })
-        );
-        
-        this.scene.add(glow);
-        
-        // Remove trails after short time
+        // Remove trail after short time
         setTimeout(() => {
             this.scene.remove(trail);
-            this.scene.remove(glow);
-        }, 80);
+        }, 100);
     }
     
     screenShake() {
-        const intensity = 0.08;
+        const intensity = 0.02; // Increased intensity
         this.camera.position.x += (Math.random() - 0.5) * intensity;
         this.camera.position.y += (Math.random() - 0.5) * intensity;
         
+        // Smoothly return to original position
         setTimeout(() => {
             this.camera.position.x -= (Math.random() - 0.5) * intensity;
             this.camera.position.y -= (Math.random() - 0.5) * intensity;
-        }, 60);
+        }, 80);
     }
     
     hitEnemy(enemy, damage, hitPoint) {
