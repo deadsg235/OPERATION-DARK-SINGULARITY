@@ -230,9 +230,10 @@ class Game {
 
         const right = new THREE.Vector3().crossVectors(this.camera.up, forward).normalize();
 
-        const moveDirection = new THREE.Vector3()
-            .add(forward.multiplyScalar(zSpeed))
-            .add(right.multiplyScalar(xSpeed));
+        const forwardMove = forward.clone().multiplyScalar(zSpeed);
+        const rightMove = right.clone().multiplyScalar(xSpeed);
+        
+        const moveDirection = new THREE.Vector3().add(forwardMove).add(rightMove);
 
         this.player.model.position.add(moveDirection);
 
@@ -291,6 +292,11 @@ class Game {
         this.player.ammo--;
         this.updateUI();
 
+        // To enable sound:
+        // 1. Create a 'sounds' folder in your project.
+        // 2. Add a 'gunshot.mp3' file to it.
+        // 3. Uncomment the block below.
+        /*
         const audioLoader = new THREE.AudioLoader();
         audioLoader.load('/sounds/gunshot.mp3', (buffer) => {
             if (this.sound.isPlaying) this.sound.stop();
@@ -299,6 +305,7 @@ class Game {
             this.sound.setVolume(0.5);
             this.sound.play();
         });
+        */
 
         this.gunRecoil();
 
