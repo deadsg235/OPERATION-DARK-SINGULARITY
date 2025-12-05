@@ -20,9 +20,7 @@ class Game {
             moveDirection: new THREE.Vector3(),
             isMoving: false,
             recoilAlpha: 0,
-            recoilAmount: 0.3,
-            isAiming: false, // New ADS state
-            adsProgress: 0 // For smooth ADS transition
+            recoilAmount: 0.3
         };
         
         this.weapons = [
@@ -37,23 +35,12 @@ class Game {
         this.particles = [];
         this.keys = {};
         
-        this.defaultCameraOffset = new THREE.Vector3(0, 2.5, 5); // Default hip-fire camera offset
-        this.adsCameraOffset = new THREE.Vector3(0, 1.5, 1.5); // ADS camera offset
-        this.cameraOffset = this.defaultCameraOffset.clone(); // Current camera offset
-        this.defaultFOV = 75;
-        this.adsFOV = 45;
-
+        this.cameraOffset = new THREE.Vector3(0, 2.5, 5);
         this.mouse = { x: 0, y: 0 };
         this.locked = false;
         this.lastShot = 0;
         this.reloading = false;
         this.walkBob = 0;
-
-        // Weapon hip-fire and ADS positions/rotations (relative to rightArm)
-        this.weaponHipPosition = new THREE.Vector3(0, -0.3, 0.3);
-        this.weaponHipRotation = new THREE.Euler(0, 0, 0);
-        this.weaponAdsPosition = new THREE.Vector3(-0.1, -0.1, 0.3); // Adjusted for ADS
-        this.weaponAdsRotation = new THREE.Euler(0, 0, 0); // Adjusted for ADS
         
         this.init();
     }
@@ -73,6 +60,7 @@ class Game {
         this.createWeapon();
         this.setupControls();
         this.setupLighting();
+        this.spawnLoop();
         this.animate();
     }
 
@@ -157,8 +145,7 @@ class Game {
             this.weaponGroup.add(receiver);
         }
         
-        this.weaponGroup.position.copy(this.weaponHipPosition);
-        this.weaponGroup.rotation.copy(this.weaponHipRotation);
+        this.weaponGroup.position.set(0, -0.3, 0.3);
         this.player.limbs.rightArm.add(this.weaponGroup);
     }
 
@@ -205,14 +192,8 @@ class Game {
         document.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
         document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
-        document.addEventListener('mousedown', (e) => { 
-            if (e.button === 0) this.startShooting(); 
-            if (e.button === 2) this.player.isAiming = true; // Right-click for ADS
-        });
-        document.addEventListener('mouseup', (e) => { 
-            if (e.button === 0) this.stopShooting(); 
-            if (e.button === 2) this.player.isAiming = false; // Release right-click
-        });
+        document.addEventListener('mousedown', (e) => { if (e.button === 0) this.startShooting(); });
+        document.addEventListener('mouseup', (e) => { if (e.button === 0) this.stopShooting(); });
         
         document.addEventListener('click', () => { if (!this.locked) document.body.requestPointerLock(); });
         document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === document.body; });
@@ -233,8 +214,7 @@ class Game {
     stopShooting() { this.shooting = false; }
     
     updatePlayer() {
-        const baseSpeed = this.keys['ShiftLeft'] ? 0.2 : 0.1;
-        const speed = this.player.isAiming ? baseSpeed * 0.6 : baseSpeed; // Reduced speed when aiming
+        const speed = this.keys['ShiftLeft'] ? 0.2 : 0.1;
         this.player.isMoving = false;
         
         let zSpeed = 0;
@@ -278,20 +258,6 @@ class Game {
     }
 
     updateCamera() {
-        // Smoothly interpolate ADS progress
-        if (this.player.isAiming) {
-            this.player.adsProgress = THREE.MathUtils.lerp(this.player.adsProgress, 1, 0.1);
-        } else {
-            this.player.adsProgress = THREE.MathUtils.lerp(this.player.adsProgress, 0, 0.1);
-        }
-
-        // Interpolate FOV
-        this.camera.fov = THREE.MathUtils.lerp(this.defaultFOV, this.adsFOV, this.player.adsProgress);
-        this.camera.updateProjectionMatrix();
-
-        // Interpolate camera offset
-        this.cameraOffset.lerpVectors(this.defaultCameraOffset, this.adsCameraOffset, this.player.adsProgress);
-
         const targetPosition = this.player.model.position;
         const cameraLookAt = new THREE.Vector3().copy(targetPosition).add(new THREE.Vector3(0, 1, 0));
 
@@ -368,13 +334,8 @@ class Game {
 
     updateWeapon() {
         if (this.weaponGroup) {
-            // Smoothly interpolate weapon position and rotation for ADS
-            this.weaponGroup.position.lerpVectors(this.weaponHipPosition, this.weaponAdsPosition, this.player.adsProgress);
-            this.weaponGroup.rotation.slerp(this.weaponHipRotation, this.weaponAdsRotation, this.player.adsProgress);
-
-            // Apply recoil on top of ADS/Hip-fire position
             this.player.recoilAlpha = THREE.MathUtils.lerp(this.player.recoilAlpha, 0, 0.15);
-            this.weaponGroup.rotation.x += this.player.recoilAlpha * -this.player.recoilAmount;
+            this.weaponGroup.rotation.x = this.player.recoilAlpha * -this.player.recoilAmount;
         }
     }
     
@@ -546,8 +507,7 @@ class Game {
         
         if (this.reloading) {
             document.getElementById('ammo').textContent = 'RELOADING...';
-        }
-        else {
+        } else {
             document.getElementById('ammo').textContent = `${this.player.ammo}/${this.player.maxAmmo}`;
         }
     }
