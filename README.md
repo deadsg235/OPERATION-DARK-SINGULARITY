@@ -1,85 +1,62 @@
-# Gore Shooter FPS
+# Operation Dark Singularity
 
-A fast-paced, gore-filled first-person shooter built with Three.js and deployed on Vercel.
+A fast-paced web-based first-person shooter optimized for Vercel deployment.
+
+## 🚀 Quick Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/operation-dark-singularity)
 
 ## Features
 
-- **Fast-paced FPS gameplay** with smooth first-person controls
-- **Dismemberment system** with realistic body part physics
-- **Gore effects** including blood splatters and flying body parts
-- **Enemy AI** with pathfinding and aggressive behavior
-- **Weapon system** with recoil, muzzle flash, and bullet trails
-- **Particle effects** for explosions and blood
-- **Procedural audio** using Web Audio API
-- **Optimized performance** for 60fps gameplay
-
-## Controls
-
-- **WASD** - Movement
-- **Mouse** - Look around
-- **Left Click** - Shoot
-- **R** - Reload
-- **Shift** - Sprint
-
-## Deployment
-
-### Local Development
-```bash
-npm install
-npm run dev
-```
-
-### Deploy to Vercel
-1. Push to GitHub repository
-2. Connect repository to Vercel
-3. Deploy automatically with zero configuration
-
-### Manual Deployment
-```bash
-npm run build
-# Upload dist/ folder to Vercel
-```
-
-## Technical Details
-
-- **Engine**: Three.js for 3D graphics
-- **Physics**: Custom physics for dismemberment
-- **Audio**: Web Audio API for procedural sounds
-- **Build**: Vite for fast development and optimized builds
-- **Deployment**: Vercel-ready configuration
-
-## Game Systems
-
-### Dismemberment System
-- Real-time body part separation
-- Physics-based flying limbs
-- Blood particle effects
-- Headshot instant kills
-
-### Enemy AI
-- Pathfinding towards player
-- Dynamic spawning system
-- Health and damage system
-- Death animations
+### Core Gameplay
+- **Responsive FPS Controls** - Smooth mouse look and movement with sprint/jump
+- **Satisfying Gunplay** - Realistic recoil, muzzle flash, and impact effects
+- **Smart AI Enemies** - Android enemies with patrol, chase, and attack behaviors
+- **Dynamic Difficulty** - Enemy spawn rate increases over time
 
 ### Weapon System
-- Realistic recoil mechanics
-- Muzzle flash effects
-- Bullet trail visualization
-- Reload animations
+- **Punchy Feedback** - Screen shake, recoil patterns, and visual effects
+- **Realistic Mechanics** - Ammo management, reload system, and range-based damage
+- **Audio Design** - Satisfying weapon sounds and impact audio
 
-## Performance Optimizations
+### AI Android Enemies
+- **State-Based AI** - Patrol → Chase → Attack behavior patterns
+- **Smart Navigation** - NavMesh-based pathfinding and obstacle avoidance
+- **Combat Awareness** - Detection ranges and tactical positioning
 
-- Efficient particle pooling
-- LOD system for distant objects
-- Optimized shadow mapping
-- Compressed textures and models
+## Local Development
 
-## Browser Compatibility
+```bash
+# Install dependencies
+npm install
 
-- Chrome 80+
-- Firefox 75+
-- Safari 13+
-- Edge 80+
+# Start development server
+npm run dev
 
-Requires WebGL 2.0 support for optimal performance.
+# Build for production
+npm run build
+```
+
+## Vercel Deployment
+
+1. **Fork/Clone** this repository
+2. **Connect** to Vercel dashboard
+3. **Deploy** - Automatic build and deployment
+4. **Play** - Game runs instantly in browser
+
+## Controls
+- **WASD** - Movement
+- **Mouse** - Look around
+- **Left Shift** - Sprint
+- **Space** - Jump
+- **Left Click** - Fire weapon
+- **R** - Reload
+
+## Technical Stack
+- **Frontend**: Vanilla JavaScript + Three.js
+- **Physics**: Cannon.js
+- **Build**: Vite
+- **Deploy**: Vercel
+- **Bundle Size**: < 500KB
+
+Optimized for instant web deployment with zero configuration required.

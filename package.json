@@ -1,8 +1,7 @@
 {
-  "name": "fps-gore-shooter",
+  "name": "operation-dark-singularity",
   "version": "1.0.0",
-  "description": "Fast-paced FPS with dismemberment system",
-  "main": "index.html",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,7 +12,6 @@
     "cannon-es": "^0.20.0"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "terser": "^5.0.0"
+    "vite": "^5.0.0"
   }
 }

@@ -3,92 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gore Shooter FPS</title>
+    <title>Operation Dark Singularity</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             background: #000; 
             overflow: hidden; 
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', monospace;
             cursor: none;
         }
-        #gameContainer { 
-            position: relative; 
-            width: 100vw; 
-            height: 100vh; 
-        }
         #ui {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #00ff00;
             z-index: 100;
+            font-size: 18px;
+            text-shadow: 0 0 10px #00ff00;
         }
         #crosshair {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
+            width: 4px;
+            height: 4px;
+            background: #00ff00;
             transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            border: 2px solid #ff0000;
-            border-radius: 50%;
+            z-index: 100;
+            box-shadow: 0 0 10px #00ff00;
         }
-        #hud {
-            position: absolute;
+        #instructions {
+            position: fixed;
             bottom: 20px;
             left: 20px;
-            color: #ff0000;
-            font-size: 18px;
-            text-shadow: 2px 2px 4px #000;
+            color: #00ff00;
+            z-index: 100;
+            font-size: 14px;
         }
-        #menu {
-            position: absolute;
+        #gameOver {
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            padding: 40px;
-            border-radius: 10px;
+            color: #ff0000;
             text-align: center;
-            color: #fff;
-            pointer-events: all;
+            z-index: 200;
+            display: none;
+            font-size: 24px;
         }
-        button {
-            background: #ff0000;
-            color: #fff;
-            border: none;
-            padding: 15px 30px;
-            margin: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover { background: #cc0000; }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <div id="ui">
-            <div id="crosshair"></div>
-            <div id="hitmarker" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; background-color: white; border-radius: 50%; opacity: 0; transition: opacity 0.05s ease-out; pointer-events: none;"></div>
-            <div id="hud">
-                <div>Health: <span id="health">100</span></div>
-                <div>Ammo: <span id="ammo">30</span></div>
-                <div>Score: <span id="score">0</span></div>
-            </div>
-            <div id="menu">
-                <h1>OPERATION DARK SINGULARITY</h1>
-                <p>Fast-paced FPS with dismemberment</p>
-                <button onclick="startGame()">START GAME</button>
-                <div style="margin-top: 20px; font-size: 12px;">
-                    WASD - Move | Mouse - Look | Click - Shoot | R - Reload
-                </div>
-            </div>
-        </div>
+    <div id="ui">
+        <div>Health: <span id="health">100</span></div>
+        <div>Score: <span id="score">0</span></div>
+        <div>Ammo: <span id="ammo">30/30</span></div>
     </div>
-    <script type="module" src="./src/main.js"></script>
+    <div id="crosshair"></div>
+    <div id="instructions">
+        WASD: Move | Mouse: Look | Click: Shoot | R: Reload | Shift: Sprint
+    </div>
+    <div id="gameOver">
+        <h2>GAME OVER</h2>
+        <p>Score: <span id="finalScore">0</span></p>
+        <p>Press F5 to restart</p>
+    </div>
+    <script type="module" src="/main.js"></script>
 </body>
 </html>
