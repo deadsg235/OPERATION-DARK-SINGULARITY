@@ -204,12 +204,11 @@ class Game {
     onMouseMove(event) {
         if (!this.locked) return;
         this.mouse.x += event.movementX * 0.002; // Mouse right -> camera right
-        this.mouse.y += event.movementY * 0.002; // Mouse up -> camera up
+        this.mouse.y -= event.movementY * 0.002; // Mouse up -> camera down (inverted Y)
         this.mouse.y = Math.max(-Math.PI / 4, Math.min(Math.PI / 2, this.mouse.y));
     }
     
     startShooting() { 
-        console.log("startShooting called");
         this.shooting = true; 
     }
     stopShooting() { this.shooting = false; }
@@ -288,39 +287,12 @@ class Game {
     }
     
     shoot() {
-        console.log("shoot() called");
         const weapon = this.weapons[this.player.weapon];
-        if (this.player.ammo <= 0) {
-            console.log("shoot() returning early because: Ammo is 0");
-            return;
-        }
-        if (this.reloading) {
-            console.log("shoot() returning early because: Reloading");
-            return;
-        }
-        if (Date.now() - this.lastShot < weapon.fireRate) {
-            console.log("shoot() returning early because: Fire Rate limit (", Date.now() - this.lastShot, "ms since last shot, fire rate is", weapon.fireRate, "ms)");
-            return;
-        }
+        if (this.player.ammo <= 0 || this.reloading || Date.now() - this.lastShot < weapon.fireRate) return;
         
         this.lastShot = Date.now();
         this.player.ammo--;
         this.updateUI();
-
-        // To enable sound:
-        // 1. Create a 'sounds' folder in your project.
-        // 2. Add a 'gunshot.mp3' file to it.
-        // 3. Uncomment the block below.
-        /*
-        // const audioLoader = new THREE.AudioLoader();
-        // audioLoader.load('/sounds/gunshot.mp3', (buffer) => {
-        //     if (this.sound.isPlaying) this.sound.stop();
-        //     this.sound.setBuffer(buffer);
-        //     this.sound.setLoop(false);
-        //     this.sound.setVolume(0.5);
-        //     this.sound.play();
-        // });
-        */
 
         this.gunRecoil();
 
@@ -329,23 +301,25 @@ class Game {
         }
         
         const raycaster = new THREE.Raycaster();
-        console.log("Camera state before setFromCamera:", this.camera);
         raycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
-        console.log("Raycaster ray state after setFromCamera:", raycaster.ray);
 
-        const allEnemyMeshes = this.enemies.flatMap(enemy => enemy.mesh.children);
-        const intersects = raycaster.intersectObjects(allEnemyMeshes, true);
-        
-        const targetPoint = new THREE.Vector3(); // Initialize targetPoint
-        if (intersects.length > 0) {
-            const hitMesh = intersects[0].object;
-            const enemy = this.enemies.find(e => e.mesh.children.includes(hitMesh));
-            if (enemy) {
-                this.hitEnemy(enemy, weapon.damage, intersects[0].point);
-            }
-            targetPoint.copy(intersects[0].point); // Copy the intersection point
+        const targetPoint = new THREE.Vector3();
+        if (!raycaster.ray) { // Fallback if raycaster.ray is undefined
+            this.camera.getWorldDirection(targetPoint).multiplyScalar(100).add(this.camera.position);
         } else {
-            raycaster.ray.at(100, targetPoint); // Write directly into targetPoint
+            const allEnemyMeshes = this.enemies.flatMap(enemy => enemy.mesh.children);
+            const intersects = raycaster.intersectObjects(allEnemyMeshes, true);
+            
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const enemy = this.enemies.find(e => e.mesh.children.includes(hitMesh));
+                if (enemy) {
+                    this.hitEnemy(enemy, weapon.damage, intersects[0].point);
+                }
+                targetPoint.copy(intersects[0].point);
+            } else {
+                raycaster.ray.at(100, targetPoint);
+            }
         }
 
         const barrelPosition = new THREE.Vector3();
