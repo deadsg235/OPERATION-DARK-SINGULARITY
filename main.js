@@ -18,7 +18,9 @@ class Game {
             model: null,
             limbs: {},
             moveDirection: new THREE.Vector3(),
-            isMoving: false
+            isMoving: false,
+            recoilAlpha: 0,
+            recoilAmount: 0.3
         };
         
         this.weapons = [
@@ -213,22 +215,30 @@ class Game {
         const speed = this.keys['ShiftLeft'] ? 0.2 : 0.1;
         this.player.isMoving = false;
         
-        if (this.keys['KeyW']) { this.player.moveDirection.z = -speed; this.player.isMoving = true; }
-        else if (this.keys['KeyS']) { this.player.moveDirection.z = speed; this.player.isMoving = true; }
-        else { this.player.moveDirection.z = 0; }
+        let zSpeed = 0;
+        let xSpeed = 0;
 
-        if (this.keys['KeyA']) { this.player.moveDirection.x = -speed; this.player.isMoving = true; }
-        else if (this.keys['KeyD']) { this.player.moveDirection.x = speed; this.player.isMoving = true; }
-        else { this.player.moveDirection.x = 0; }
+        if (this.keys['KeyW']) { zSpeed = speed; this.player.isMoving = true; }
+        if (this.keys['KeyS']) { zSpeed = -speed; this.player.isMoving = true; }
+        if (this.keys['KeyA']) { xSpeed = -speed; this.player.isMoving = true; }
+        if (this.keys['KeyD']) { xSpeed = speed; this.player.isMoving = true; }
+
+        const forward = new THREE.Vector3();
+        this.camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3().crossVectors(this.camera.up, forward).normalize();
+
+        const moveDirection = new THREE.Vector3()
+            .add(forward.multiplyScalar(zSpeed))
+            .add(right.multiplyScalar(xSpeed));
+
+        this.player.model.position.add(moveDirection);
 
         const cameraDirection = new THREE.Vector3();
         this.camera.getWorldDirection(cameraDirection);
         const angle = Math.atan2(cameraDirection.x, cameraDirection.z);
-
-        const rotatedMoveDirection = this.player.moveDirection.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-        this.player.model.position.add(rotatedMoveDirection);
-
-        // Player always faces camera direction
         this.player.model.rotation.y = angle;
 
         if (this.player.isMoving) {
@@ -290,7 +300,6 @@ class Game {
             this.sound.play();
         });
 
-        // Gun recoil animation
         this.gunRecoil();
 
         if (this.revolverCylinder) {
@@ -298,7 +307,7 @@ class Game {
         }
         
         const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera({ x: 0, y: 0 }, this.camera); // Ray from center of screen
+        raycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
 
         const allEnemyMeshes = this.enemies.flatMap(enemy => enemy.mesh.children);
         const intersects = raycaster.intersectObjects(allEnemyMeshes, true);
@@ -312,7 +321,7 @@ class Game {
             }
             targetPoint = intersects[0].point;
         } else {
-            targetPoint = raycaster.ray.at(100); // A point far away
+            targetPoint = raycaster.ray.at(100);
         }
 
         const barrelPosition = new THREE.Vector3();
@@ -322,15 +331,14 @@ class Game {
     }
 
     gunRecoil() {
-        const recoilAmount = -0.2;
-        const recoilDuration = 50;
-        const originalRotation = this.weaponGroup.rotation.x;
-        
-        this.weaponGroup.rotation.x += recoilAmount;
-        
-        setTimeout(() => {
-            this.weaponGroup.rotation.x = originalRotation;
-        }, recoilDuration);
+        this.player.recoilAlpha = 1;
+    }
+
+    updateWeapon() {
+        if (this.weaponGroup) {
+            this.player.recoilAlpha = THREE.MathUtils.lerp(this.player.recoilAlpha, 0, 0.15);
+            this.weaponGroup.rotation.x = this.player.recoilAlpha * -this.player.recoilAmount;
+        }
     }
     
     createMuzzleFlash() {
@@ -520,6 +528,7 @@ class Game {
         this.updateEnemies();
         this.updatePowerups();
         this.updateParticles();
+        this.updateWeapon();
         this.world.step(1/60);
         
         this.renderer.render(this.scene, this.camera);
