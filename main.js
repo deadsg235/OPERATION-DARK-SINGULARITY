@@ -203,12 +203,15 @@ class Game {
     
     onMouseMove(event) {
         if (!this.locked) return;
-        this.mouse.x -= event.movementX * 0.002;
-        this.mouse.y -= event.movementY * 0.002;
+        this.mouse.x += event.movementX * 0.002; // Mouse right -> camera right
+        this.mouse.y += event.movementY * 0.002; // Mouse up -> camera down (inverted Y)
         this.mouse.y = Math.max(-Math.PI / 4, Math.min(Math.PI / 2, this.mouse.y));
     }
     
-    startShooting() { this.shooting = true; }
+    startShooting() { 
+        console.log("startShooting called");
+        this.shooting = true; 
+    }
     stopShooting() { this.shooting = false; }
     
     updatePlayer() {
@@ -285,8 +288,20 @@ class Game {
     }
     
     shoot() {
+        console.log("shoot() called");
         const weapon = this.weapons[this.player.weapon];
-        if (this.player.ammo <= 0 || this.reloading || Date.now() - this.lastShot < weapon.fireRate) return;
+        if (this.player.ammo <= 0) {
+            console.log("shoot() returning early because: Ammo is 0");
+            return;
+        }
+        if (this.reloading) {
+            console.log("shoot() returning early because: Reloading");
+            return;
+        }
+        if (Date.now() - this.lastShot < weapon.fireRate) {
+            console.log("shoot() returning early because: Fire Rate limit (", Date.now() - this.lastShot, "ms since last shot, fire rate is", weapon.fireRate, "ms)");
+            return;
+        }
         
         this.lastShot = Date.now();
         this.player.ammo--;
