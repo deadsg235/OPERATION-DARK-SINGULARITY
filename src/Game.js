@@ -28,7 +28,7 @@ export class Game {
         
         this.player = new Player(this.camera, this.playerBody);
         this.enemyManager = new EnemyManager(this.scene, this.takeDamage.bind(this));
-        this.weaponSystem = new WeaponSystem(this.scene, this.camera);
+        this.weaponSystem = new WeaponSystem(this.scene, this.camera, this.audioManager);
         this.particleSystem = new ParticleSystem(this.scene);
         this.audioManager = new AudioManager();
         
