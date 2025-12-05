@@ -185,8 +185,8 @@ class Game {
     
     onMouseMove(event) {
         if (!this.locked) return;
-        this.camera.rotation.y -= event.movementX * 0.002;
-        this.camera.rotation.x -= event.movementY * 0.002;
+        this.camera.rotation.y -= event.movementX * 0.001;
+        this.camera.rotation.x -= event.movementY * 0.001;
         this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
     }
     
@@ -196,7 +196,7 @@ class Game {
     stopShooting() { this.shooting = false; }
     
     updatePlayer() {
-        const speed = this.keys['ShiftLeft'] ? 0.2 : 0.1;
+        const speed = this.keys['ShiftLeft'] ? 20 : 10;
         this.player.isMoving = false;
         
         let zSpeed = 0;
@@ -219,8 +219,8 @@ class Game {
         
         const moveDirection = new THREE.Vector3().add(forwardMove).add(rightMove);
 
-        this.player.body.velocity.x = moveDirection.x * 10;
-        this.player.body.velocity.z = moveDirection.z * 10;
+        this.player.body.velocity.x = moveDirection.x;
+        this.player.body.velocity.z = moveDirection.z;
         this.player.model.position.copy(this.player.body.position);
 
 
@@ -311,7 +311,7 @@ class Game {
         
         const trail = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.6, linewidth: 2 }));
         this.scene.add(trail);
-        setTimeout(() => { this.scene.remove(trail); }, 100);
+        setTimeout(() => { this.scene.remove(trail); }, 2000);
     }
     
     hitEnemy(enemy, damage, hitPoint) {
