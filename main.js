@@ -35,7 +35,53 @@ class Game {
         this.weaponSway = { x: 0, y: 0 };
         this.walkBob = 0;
         
+        this.audioContext = null;
+        this.initAudio();
         this.init();
+    }
+    
+    initAudio() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.log('Web Audio API not supported');
+        }
+    }
+    
+    playGunshot(weaponType) {
+        if (!this.audioContext) return;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+        
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        // Weapon-specific sound profiles
+        const profiles = {
+            0: { freq: 80, decay: 0.15, volume: 0.3 }, // Heavy Revolver
+            1: { freq: 120, decay: 0.08, volume: 0.25 }, // Assault Rifle
+            2: { freq: 60, decay: 0.2, volume: 0.35 }, // Heavy Shotgun
+            3: { freq: 200, decay: 0.06, volume: 0.2 }, // Plasma SMG
+            4: { freq: 40, decay: 0.25, volume: 0.4 } // Rail Cannon
+        };
+        
+        const profile = profiles[weaponType] || profiles[0];
+        
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(profile.freq, this.audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(profile.freq * 0.1, this.audioContext.currentTime + profile.decay);
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, this.audioContext.currentTime);
+        
+        gainNode.gain.setValueAtTime(profile.volume, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + profile.decay);
+        
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + profile.decay);
     }
     
     init() {
@@ -193,7 +239,13 @@ class Game {
         });
         
         document.addEventListener('click', () => {
-            if (!this.locked) document.body.requestPointerLock();
+            if (!this.locked) {
+                document.body.requestPointerLock();
+                // Resume audio context on user interaction
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+            }
         });
         
         document.addEventListener('pointerlockchange', () => {
@@ -271,6 +323,9 @@ class Game {
         this.lastShot = Date.now();
         this.player.ammo--;
         this.updateUI();
+        
+        // Play gunshot sound
+        this.playGunshot(this.player.weapon);
         
         // Heavy weapon recoil
         this.weaponSway.y -= weapon.recoil;
