@@ -9,8 +9,8 @@ class Game {
         this.world = new CANNON.World();
         
         this.player = { 
-            health: 100, maxHealth: 100, score: 0, ammo: 6, maxAmmo: 6, 
-            shield: 100, maxShield: 100, weapon: 0, kills: 0, speed: 0.4
+            health: 50, maxHealth: 50, score: 0, ammo: 6, maxAmmo: 6, 
+            shield: 25, maxShield: 25, weapon: 0, kills: 0, speed: 0.6
         };
         
         this.weapons = [
@@ -21,7 +21,7 @@ class Game {
             { name: 'Rail Cannon', damage: 300, fireRate: 1500, maxAmmo: 5, reloadTime: 4000, color: 0x660066, recoil: 0.12, shake: 0.35, trailColor: 0xff00ff }
         ];
         
-        this.wave = { current: 1, enemiesLeft: 0, totalEnemies: 8, waveActive: false, betweenWaves: false };
+        this.wave = { current: 1, enemiesLeft: 0, totalEnemies: 15, waveActive: false, betweenWaves: false };
         this.enemies = [];
         this.enemyLasers = [];
         this.powerups = [];
@@ -240,7 +240,7 @@ class Game {
         this.updateWeaponTransform();
         
         if (this.player.shield < this.player.maxShield) {
-            this.player.shield = Math.min(this.player.maxShield, this.player.shield + 0.2);
+            this.player.shield = Math.min(this.player.maxShield, this.player.shield + 0.05);
         }
     }
     
@@ -388,9 +388,9 @@ class Game {
             this.player.kills++;
             this.wave.enemiesLeft--;
             
-            // Drop ammo/powerups
-            if (Math.random() < 0.6) this.createAmmoDrop(enemy.mesh.position);
-            if (Math.random() < 0.3) this.createPowerup(enemy.mesh.position);
+            // Rare drops
+            if (Math.random() < 0.2) this.createAmmoDrop(enemy.mesh.position);
+            if (Math.random() < 0.1) this.createPowerup(enemy.mesh.position);
             
             this.updateUI();
             
@@ -666,12 +666,12 @@ class Game {
         
         const enemy = {
             mesh: androidGroup,
-            health: 80 + (this.wave.current * 20),
-            maxHealth: 80 + (this.wave.current * 20),
-            speed: 0.03 + (this.wave.current * 0.005),
+            health: 120 + (this.wave.current * 40),
+            maxHealth: 120 + (this.wave.current * 40),
+            speed: 0.06 + (this.wave.current * 0.015),
             lastAttack: 0,
             lastShot: 0,
-            fireRate: 1500 - (this.wave.current * 100),
+            fireRate: 800 - (this.wave.current * 50),
             parts: { head: true, leftArm: true, rightArm: true, leftLeg: true, rightLeg: true }
         };
         
@@ -706,9 +706,9 @@ class Game {
                 }
                 
                 // Melee attack if close
-                if (distToPlayer < 3 && Date.now() - enemy.lastAttack > 800) {
+                if (distToPlayer < 3 && Date.now() - enemy.lastAttack > 400) {
                     enemy.lastAttack = Date.now();
-                    this.takeDamage(20 + this.wave.current * 2);
+                    this.takeDamage(35 + this.wave.current * 5);
                 }
             }
         });
@@ -727,7 +727,7 @@ class Game {
             direction: direction.clone(),
             speed: 0.8,
             life: 2000,
-            damage: 15 + this.wave.current * 2
+            damage: 25 + this.wave.current * 4
         };
         
         const geometry = new THREE.BufferGeometry();
@@ -776,7 +776,7 @@ class Game {
         this.wave.enemiesLeft = this.wave.totalEnemies;
         
         for (let i = 0; i < this.wave.totalEnemies; i++) {
-            setTimeout(() => this.createEnemy(), i * 500);
+            setTimeout(() => this.createEnemy(), i * 200);
         }
         
         this.updateWaveUI();
@@ -786,14 +786,14 @@ class Game {
         this.wave.waveActive = false;
         this.wave.betweenWaves = true;
         this.wave.current++;
-        this.wave.totalEnemies = Math.min(20, 8 + this.wave.current * 2);
+        this.wave.totalEnemies = Math.min(40, 15 + this.wave.current * 4);
         
-        // Bonus score and health
-        this.player.score += this.wave.current * 500;
-        this.player.health = Math.min(this.player.maxHealth, this.player.health + 30);
-        this.player.shield = this.player.maxShield;
+        // Minimal wave bonus
+        this.player.score += this.wave.current * 200;
+        this.player.health = Math.min(this.player.maxHealth, this.player.health + 10);
+        this.player.shield = Math.min(this.player.maxShield, this.player.shield + 15);
         
-        setTimeout(() => this.startWave(), 3000);
+        setTimeout(() => this.startWave(), 1500);
         this.updateUI();
         this.updateWaveUI();
     }
@@ -864,13 +864,13 @@ class Game {
     collectPowerup(powerup) {
         switch (powerup.type) {
             case 'health':
-                this.player.health = Math.min(this.player.maxHealth, this.player.health + 40);
+                this.player.health = Math.min(this.player.maxHealth, this.player.health + 15);
                 break;
             case 'shield':
-                this.player.shield = this.player.maxShield;
+                this.player.shield = Math.min(this.player.maxShield, this.player.shield + 10);
                 break;
             case 'ammo':
-                this.player.ammo = Math.min(this.player.maxAmmo, this.player.ammo + Math.floor(this.player.maxAmmo * 0.5));
+                this.player.ammo = Math.min(this.player.maxAmmo, this.player.ammo + Math.floor(this.player.maxAmmo * 0.3));
                 break;
         }
         this.updateUI();
