@@ -275,18 +275,23 @@ class Game {
     }
     
     createBulletTrail(start, direction) {
-        const end = start.clone().add(direction.clone().multiplyScalar(200));
+        const end = start.clone().add(direction.clone().multiplyScalar(150));
         
         const geometry = new THREE.BufferGeometry();
         geometry.setFromPoints([start, end]);
         
         const trail = new THREE.Line(
             geometry,
-            new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 })
+            new THREE.LineBasicMaterial({ 
+                color: 0x00ffff, 
+                transparent: true, 
+                opacity: 0.6,
+                linewidth: 2
+            })
         );
         
         this.scene.add(trail);
-        setTimeout(() => this.scene.remove(trail), 100);
+        setTimeout(() => this.scene.remove(trail), 80);
     }
     
     screenShake() {
@@ -303,34 +308,16 @@ class Game {
     hitEnemy(enemy, damage, hitPoint) {
         enemy.health -= damage;
         
-        for (let i = 0; i < 8; i++) {
-            const spark = new THREE.Mesh(
-                new THREE.SphereGeometry(0.04),
-                new THREE.MeshBasicMaterial({ color: 0xffff00 })
-            );
-            spark.position.copy(hitPoint);
-            spark.position.add(new THREE.Vector3(
-                (Math.random() - 0.5) * 0.5,
-                (Math.random() - 0.5) * 0.5,
-                (Math.random() - 0.5) * 0.5
-            ));
-            this.scene.add(spark);
-            this.particles.push({ 
-                mesh: spark, 
-                life: 400,
-                velocity: new THREE.Vector3(
-                    (Math.random() - 0.5) * 0.1,
-                    Math.random() * 0.05,
-                    (Math.random() - 0.5) * 0.1
-                )
-            });
-        }
-        
         if (enemy.health <= 0) {
             this.destroyEnemy(enemy);
             this.player.score += 200;
             this.player.kills++;
             this.wave.enemiesLeft--;
+            
+            // Drop ammo/powerups
+            if (Math.random() < 0.6) this.createAmmoDrop(enemy.mesh.position);
+            if (Math.random() < 0.3) this.createPowerup(enemy.mesh.position);
+            
             this.updateUI();
             
             if (this.wave.enemiesLeft <= 0 && !this.wave.betweenWaves) {
@@ -346,31 +333,28 @@ class Game {
         const pos = enemy.mesh.position;
         
         // Electric explosion
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 15; i++) {
             const spark = new THREE.Mesh(
-                new THREE.SphereGeometry(0.06),
+                new THREE.SphereGeometry(0.05),
                 new THREE.MeshBasicMaterial({ color: 0x00ffff })
             );
             spark.position.copy(pos);
             spark.position.add(new THREE.Vector3(
-                (Math.random() - 0.5) * 2.5,
-                Math.random() * 2,
-                (Math.random() - 0.5) * 2.5
+                (Math.random() - 0.5) * 2,
+                Math.random() * 1.5,
+                (Math.random() - 0.5) * 2
             ));
             this.scene.add(spark);
             this.particles.push({ 
                 mesh: spark, 
-                life: 800,
+                life: 600,
                 velocity: new THREE.Vector3(
-                    (Math.random() - 0.5) * 0.2,
-                    Math.random() * 0.15,
-                    (Math.random() - 0.5) * 0.2
+                    (Math.random() - 0.5) * 0.15,
+                    Math.random() * 0.1,
+                    (Math.random() - 0.5) * 0.15
                 )
             });
         }
-        
-        // Random powerup drop
-        if (Math.random() < 0.3) this.createPowerup(pos);
     }
     
     createEnemy() {
@@ -546,17 +530,17 @@ class Game {
     }
     
     createPowerup(position = null) {
-        const types = ['health', 'shield', 'ammo'];
+        const types = ['health', 'shield'];
         const type = types[Math.floor(Math.random() * types.length)];
-        const colors = { health: 0x00ff00, shield: 0x0088ff, ammo: 0xffaa00 };
+        const colors = { health: 0x00ff00, shield: 0x0088ff };
         
         const powerup = {
             mesh: new THREE.Mesh(
-                new THREE.OctahedronGeometry(0.7),
+                new THREE.OctahedronGeometry(0.6),
                 new THREE.MeshLambertMaterial({ 
                     color: colors[type],
                     transparent: true,
-                    opacity: 0.8
+                    opacity: 0.9
                 })
             ),
             type: type,
@@ -565,17 +549,37 @@ class Game {
         
         if (position) {
             powerup.mesh.position.copy(position);
-            powerup.mesh.position.y = 1.5;
+            powerup.mesh.position.y = 1.2;
         } else {
             powerup.mesh.position.set(
                 (Math.random() - 0.5) * 200,
-                1.5,
+                1.2,
                 (Math.random() - 0.5) * 200
             );
         }
         
         this.scene.add(powerup.mesh);
         this.powerups.push(powerup);
+    }
+    
+    createAmmoDrop(position) {
+        const ammoDrop = {
+            mesh: new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 0.3, 0.5),
+                new THREE.MeshLambertMaterial({ 
+                    color: 0xffaa00,
+                    transparent: true,
+                    opacity: 0.9
+                })
+            ),
+            type: 'ammo',
+            rotation: 0
+        };
+        
+        ammoDrop.mesh.position.copy(position);
+        ammoDrop.mesh.position.y = 1.0;
+        this.scene.add(ammoDrop.mesh);
+        this.powerups.push(ammoDrop);
     }
     
     checkCollisions() {
@@ -591,13 +595,13 @@ class Game {
     collectPowerup(powerup) {
         switch (powerup.type) {
             case 'health':
-                this.player.health = Math.min(this.player.maxHealth, this.player.health + 50);
+                this.player.health = Math.min(this.player.maxHealth, this.player.health + 40);
                 break;
             case 'shield':
                 this.player.shield = this.player.maxShield;
                 break;
             case 'ammo':
-                this.player.ammo = this.player.maxAmmo;
+                this.player.ammo = Math.min(this.player.maxAmmo, this.player.ammo + Math.floor(this.player.maxAmmo * 0.5));
                 break;
         }
         this.updateUI();
@@ -687,9 +691,15 @@ class Game {
     
     updatePowerups() {
         this.powerups.forEach(powerup => {
-            powerup.rotation += 0.04;
+            powerup.rotation += 0.03;
             powerup.mesh.rotation.y = powerup.rotation;
-            powerup.mesh.position.y = 1.5 + Math.sin(Date.now() * 0.005 + powerup.rotation) * 0.4;
+            
+            if (powerup.type === 'ammo') {
+                powerup.mesh.position.y = 1.0 + Math.sin(Date.now() * 0.004 + powerup.rotation) * 0.2;
+                powerup.mesh.rotation.x = powerup.rotation * 0.5;
+            } else {
+                powerup.mesh.position.y = 1.2 + Math.sin(Date.now() * 0.005 + powerup.rotation) * 0.3;
+            }
         });
     }
     
