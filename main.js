@@ -84,6 +84,80 @@ class Game {
         oscillator.stop(this.audioContext.currentTime + profile.decay);
     }
     
+    playHeadshotCrunch() {
+        if (!this.audioContext) return;
+        
+        // Create satisfying crunch sound with multiple layers
+        const layers = 3;
+        for (let i = 0; i < layers; i++) {
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            const filter = this.audioContext.createBiquadFilter();
+            
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            oscillator.type = 'sawtooth';
+            const baseFreq = 150 + i * 80;
+            oscillator.frequency.setValueAtTime(baseFreq, this.audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(baseFreq * 0.3, this.audioContext.currentTime + 0.3);
+            
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(400 + i * 200, this.audioContext.currentTime);
+            filter.Q.setValueAtTime(5, this.audioContext.currentTime);
+            
+            const volume = 0.15 - i * 0.03;
+            gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.3);
+            
+            oscillator.start(this.audioContext.currentTime + i * 0.02);
+            oscillator.stop(this.audioContext.currentTime + 0.3 + i * 0.02);
+        }
+    }
+    
+    playImpactSound(isHeadshot = false) {
+        if (!this.audioContext) return;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+        
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        if (isHeadshot) {
+            // Sharp metallic ping for headshots
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
+            
+            filter.type = 'highpass';
+            filter.frequency.setValueAtTime(400, this.audioContext.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.1);
+            
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + 0.1);
+        } else {
+            // Dull thud for body hits
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(180, this.audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(60, this.audioContext.currentTime + 0.08);
+            
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(300, this.audioContext.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.08);
+            
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + 0.08);
+        }
+    }
+    
     init() {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setClearColor(0x0a0a1a);
@@ -429,8 +503,12 @@ class Game {
         // Headshot effects
         if (isHeadshot) {
             this.createHeadshotEffect(hitPoint);
+            this.playHeadshotCrunch();
             this.player.score += 100; // Bonus points
         }
+        
+        // Play impact sound
+        this.playImpactSound(isHeadshot);
         
         if (enemy.health <= 0) {
             if (isHeadshot) {
