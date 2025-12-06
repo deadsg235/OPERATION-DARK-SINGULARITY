@@ -18,12 +18,32 @@
             left: 20px;
             color: #00ffff;
             z-index: 100;
-            font-size: 20px;
+            font-size: 18px;
             text-shadow: 0 0 15px #00ffff;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 8px;
             border: 2px solid #00ffff;
+        }
+        #waveUI {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #ff0080;
+            z-index: 100;
+            font-size: 18px;
+            text-shadow: 0 0 15px #ff0080;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #ff0080;
+            text-align: right;
+        }
+        #waveStatus {
+            font-size: 14px;
+            margin-top: 5px;
+            color: #ffff00;
+            text-shadow: 0 0 10px #ffff00;
         }
         #crosshair {
             position: fixed;
@@ -68,19 +88,25 @@
         <div>🛡️ Shield: <span id="shield">100</span></div>
         <div>🎯 Score: <span id="score">0</span></div>
         <div>💀 Kills: <span id="kills">0</span></div>
-        <div>🔫 Weapon: <span id="weapon">Assault Rifle</span></div>
+        <div>🔫 Weapon: <span id="weapon">Plasma Rifle</span></div>
         <div>📦 Ammo: <span id="ammo">30/30</span></div>
+    </div>
+    <div id="waveUI">
+        <div>🌊 Wave: <span id="wave">1</span></div>
+        <div>👾 Enemies: <span id="enemies">8</span></div>
+        <div id="waveStatus">ELIMINATE ALL HOSTILES</div>
     </div>
     
     <div id="crosshair"></div>
 
     <div id="instructions">
-        WASD: Move | Mouse: Look | Hold Click: Auto-Fire | R: Reload | Q: Switch Weapon | Shift: Sprint
+        WASD: Move | Mouse: Look | Hold Click: Auto-Fire | R: Reload | Q: Switch Weapon | Shift: Sprint | Survive the Waves!
     </div>
     <div id="gameOver">
         <h2>GAME OVER</h2>
         <p>Final Score: <span id="finalScore">0</span></p>
         <p>Total Kills: <span id="finalKills">0</span></p>
+        <p>Waves Survived: <span id="finalWave">1</span></p>
         <p>Press F5 to restart</p>
     </div>
     <script type="module" src="/main.js"></script>
