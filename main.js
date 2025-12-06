@@ -309,8 +309,13 @@ class Game {
             
             const intersects = raycaster.intersectObjects(allEnemyMeshes);
             if (intersects.length > 0) {
-                const enemy = intersects[0].object.userData.parentEnemy;
-                if (enemy) this.hitEnemy(enemy, weapon.damage, intersects[0].point);
+                const hitMesh = intersects[0].object;
+                const enemy = hitMesh.userData.parentEnemy;
+                if (enemy) {
+                    const isHeadshot = hitMesh.name === 'head';
+                    const finalDamage = isHeadshot ? weapon.damage * 2.5 : weapon.damage;
+                    this.hitEnemy(enemy, finalDamage, intersects[0].point, hitMesh.name, isHeadshot);
+                }
             }
         }
     }
@@ -358,12 +363,28 @@ class Game {
         }, 120);
     }
     
-    hitEnemy(enemy, damage, hitPoint) {
+    hitEnemy(enemy, damage, hitPoint, bodyPart = 'torso', isHeadshot = false) {
         enemy.health -= damage;
         
+        // Dismember body part if enough damage
+        if (bodyPart !== 'torso' && enemy.parts[bodyPart] && damage > 50) {
+            this.dismemberPart(enemy, bodyPart, hitPoint);
+        }
+        
+        // Headshot effects
+        if (isHeadshot) {
+            this.createHeadshotEffect(hitPoint);
+            this.player.score += 100; // Bonus points
+        }
+        
         if (enemy.health <= 0) {
-            this.destroyEnemy(enemy);
-            this.player.score += 200;
+            if (isHeadshot) {
+                this.headshotKillAnimation(enemy);
+            } else {
+                this.destroyEnemy(enemy);
+            }
+            
+            this.player.score += isHeadshot ? 400 : 200;
             this.player.kills++;
             this.wave.enemiesLeft--;
             
@@ -377,6 +398,174 @@ class Game {
                 this.endWave();
             }
         }
+    }
+    
+    dismemberPart(enemy, bodyPart, hitPoint) {
+        if (!enemy.parts[bodyPart]) return;
+        
+        enemy.parts[bodyPart] = false;
+        const part = enemy.mesh.getObjectByName(bodyPart);
+        
+        if (part) {
+            // Create flying dismembered part
+            const dismemberedPart = part.clone();
+            dismemberedPart.position.copy(part.getWorldPosition(new THREE.Vector3()));
+            this.scene.add(dismemberedPart);
+            
+            // Remove from enemy
+            enemy.mesh.remove(part);
+            
+            // Add physics to dismembered part
+            this.particles.push({
+                mesh: dismemberedPart,
+                life: 3000,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.3,
+                    Math.random() * 0.2,
+                    (Math.random() - 0.5) * 0.3
+                )
+            });
+            
+            // Oil spray from dismemberment
+            for (let i = 0; i < 8; i++) {
+                const oil = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.03),
+                    new THREE.MeshBasicMaterial({ color: 0x1a1a1a })
+                );
+                oil.position.copy(hitPoint);
+                this.scene.add(oil);
+                this.particles.push({
+                    mesh: oil,
+                    life: 1500,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.2,
+                        Math.random() * 0.1,
+                        (Math.random() - 0.5) * 0.2
+                    ),
+                    createStain: true
+                });
+            }
+        }
+    }
+    
+    createHeadshotEffect(hitPoint) {
+        // Critical hit sparks
+        for (let i = 0; i < 12; i++) {
+            const spark = new THREE.Mesh(
+                new THREE.SphereGeometry(0.06),
+                new THREE.MeshBasicMaterial({ color: 0xffff00 })
+            );
+            spark.position.copy(hitPoint);
+            spark.position.add(new THREE.Vector3(
+                (Math.random() - 0.5) * 0.8,
+                (Math.random() - 0.5) * 0.8,
+                (Math.random() - 0.5) * 0.8
+            ));
+            this.scene.add(spark);
+            this.particles.push({
+                mesh: spark,
+                life: 800,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.25,
+                    Math.random() * 0.15,
+                    (Math.random() - 0.5) * 0.25
+                )
+            });
+        }
+        
+        // Screen flash for critical hit
+        document.body.style.background = 'rgba(255,255,0,0.2)';
+        setTimeout(() => document.body.style.background = '#000', 80);
+    }
+    
+    headshotKillAnimation(enemy) {
+        const enemyPos = enemy.mesh.position.clone();
+        
+        // Slow motion effect
+        const originalTimeScale = 1;
+        const slowMotionScale = 0.3;
+        
+        // Dramatic camera shake
+        this.screenShake(0.4);
+        
+        // Massive explosion of sparks and debris
+        for (let i = 0; i < 25; i++) {
+            const spark = new THREE.Mesh(
+                new THREE.SphereGeometry(0.08),
+                new THREE.MeshBasicMaterial({ color: 0xffaa00 })
+            );
+            spark.position.copy(enemyPos);
+            spark.position.y += 1.1; // Head level
+            spark.position.add(new THREE.Vector3(
+                (Math.random() - 0.5) * 1.5,
+                (Math.random() - 0.5) * 1.5,
+                (Math.random() - 0.5) * 1.5
+            ));
+            this.scene.add(spark);
+            this.particles.push({
+                mesh: spark,
+                life: 1200,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.4,
+                    Math.random() * 0.3,
+                    (Math.random() - 0.5) * 0.4
+                )
+            });
+        }
+        
+        // Head explosion with oil spray
+        for (let i = 0; i < 15; i++) {
+            const oil = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05),
+                new THREE.MeshBasicMaterial({ color: 0x1a1a1a })
+            );
+            oil.position.copy(enemyPos);
+            oil.position.y += 1.1;
+            this.scene.add(oil);
+            this.particles.push({
+                mesh: oil,
+                life: 2000,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.3,
+                    Math.random() * 0.2,
+                    (Math.random() - 0.5) * 0.3
+                ),
+                createStain: true
+            });
+        }
+        
+        // Body collapse animation
+        const collapseAnimation = () => {
+            let frame = 0;
+            const maxFrames = 30;
+            
+            const animate = () => {
+                if (frame < maxFrames && enemy.mesh.parent) {
+                    // Gradual fall backward
+                    enemy.mesh.rotation.x -= 0.05;
+                    enemy.mesh.position.y -= 0.02;
+                    
+                    frame++;
+                    setTimeout(animate, 33); // ~30fps for dramatic effect
+                } else {
+                    // Final destruction
+                    this.destroyEnemy(enemy);
+                }
+            };
+            animate();
+        };
+        
+        // Enhanced screen effects
+        document.body.style.background = 'rgba(255,255,255,0.4)';
+        setTimeout(() => {
+            document.body.style.background = 'rgba(255,255,0,0.3)';
+            setTimeout(() => {
+                document.body.style.background = '#000';
+            }, 150);
+        }, 100);
+        
+        // Start collapse animation after brief pause
+        setTimeout(collapseAnimation, 200);
     }
     
     destroyEnemy(enemy) {
@@ -418,6 +607,7 @@ class Game {
             new THREE.MeshLambertMaterial({ color: 0x666666 })
         );
         torso.position.y = 0.2;
+        torso.name = 'torso';
         androidGroup.add(torso);
         
         const head = new THREE.Mesh(
@@ -425,7 +615,40 @@ class Game {
             new THREE.MeshLambertMaterial({ color: 0x888888 })
         );
         head.position.y = 1.1;
+        head.name = 'head';
         androidGroup.add(head);
+        
+        const leftArm = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 1.2, 0.3),
+            new THREE.MeshLambertMaterial({ color: 0x555555 })
+        );
+        leftArm.position.set(-0.7, 0.2, 0);
+        leftArm.name = 'leftArm';
+        androidGroup.add(leftArm);
+        
+        const rightArm = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 1.2, 0.3),
+            new THREE.MeshLambertMaterial({ color: 0x555555 })
+        );
+        rightArm.position.set(0.7, 0.2, 0);
+        rightArm.name = 'rightArm';
+        androidGroup.add(rightArm);
+        
+        const leftLeg = new THREE.Mesh(
+            new THREE.BoxGeometry(0.4, 1.3, 0.4),
+            new THREE.MeshLambertMaterial({ color: 0x444444 })
+        );
+        leftLeg.position.set(-0.3, -1.0, 0);
+        leftLeg.name = 'leftLeg';
+        androidGroup.add(leftLeg);
+        
+        const rightLeg = new THREE.Mesh(
+            new THREE.BoxGeometry(0.4, 1.3, 0.4),
+            new THREE.MeshLambertMaterial({ color: 0x444444 })
+        );
+        rightLeg.position.set(0.3, -1.0, 0);
+        rightLeg.name = 'rightLeg';
+        androidGroup.add(rightLeg);
         
         const eye1 = new THREE.Mesh(
             new THREE.SphereGeometry(0.08),
@@ -441,14 +664,6 @@ class Game {
         eye2.position.set(0.15, 1.15, 0.35);
         androidGroup.add(eye2);
         
-        // Weapon arm
-        const weaponArm = new THREE.Mesh(
-            new THREE.BoxGeometry(0.3, 1.2, 0.3),
-            new THREE.MeshLambertMaterial({ color: 0x555555 })
-        );
-        weaponArm.position.set(0.7, 0.2, 0);
-        androidGroup.add(weaponArm);
-        
         const enemy = {
             mesh: androidGroup,
             health: 80 + (this.wave.current * 20),
@@ -456,7 +671,8 @@ class Game {
             speed: 0.03 + (this.wave.current * 0.005),
             lastAttack: 0,
             lastShot: 0,
-            fireRate: 1500 - (this.wave.current * 100)
+            fireRate: 1500 - (this.wave.current * 100),
+            parts: { head: true, leftArm: true, rightArm: true, leftLeg: true, rightLeg: true }
         };
         
         enemy.mesh.position.set(
@@ -766,6 +982,12 @@ class Game {
                 particle.mesh.position.add(particle.velocity);
                 particle.velocity.y -= 0.004;
                 particle.velocity.multiplyScalar(0.97);
+                
+                // Create oil stain when particle hits ground
+                if (particle.createStain && particle.mesh.position.y <= 0.1 && !particle.stainCreated) {
+                    this.createOilStain(particle.mesh.position);
+                    particle.stainCreated = true;
+                }
             }
             
             if (particle.life <= 0) {
@@ -773,6 +995,25 @@ class Game {
                 this.particles.splice(i, 1);
             }
         }
+    }
+    
+    createOilStain(position) {
+        const stainSize = 0.5 + Math.random() * 0.8;
+        const oilStain = new THREE.Mesh(
+            new THREE.CircleGeometry(stainSize),
+            new THREE.MeshBasicMaterial({ 
+                color: 0x0a0a0a,
+                transparent: true,
+                opacity: 0.8
+            })
+        );
+        oilStain.rotation.x = -Math.PI / 2;
+        oilStain.position.copy(position);
+        oilStain.position.y = 0.02;
+        this.scene.add(oilStain);
+        
+        // Add to particles for cleanup (long-lasting stain)
+        this.particles.push({ mesh: oilStain, life: 30000, velocity: null });
     }
     
     updateBulletTrails() {
