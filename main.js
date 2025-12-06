@@ -600,84 +600,146 @@ class Game {
     }
     
     createEnemy() {
+        const types = [
+            { name: 'scout', health: 60, speed: 0.08, color: 0x00ff88, fireRate: 1500, damage: 12, size: 0.8 },
+            { name: 'soldier', health: 90, speed: 0.055, color: 0xff4444, fireRate: 1200, damage: 18, size: 1.0 },
+            { name: 'heavy', health: 140, speed: 0.035, color: 0x8844ff, fireRate: 800, damage: 25, size: 1.3 },
+            { name: 'elite', health: 180, speed: 0.065, color: 0xffaa00, fireRate: 600, damage: 30, size: 1.1 }
+        ];
+        
+        // Wave-specific enemy distribution
+        let enemyType;
+        if (this.wave.current <= 3) {
+            enemyType = types[Math.random() < 0.8 ? 0 : 1]; // 80% scouts, 20% soldiers
+        } else if (this.wave.current <= 7) {
+            const rand = Math.random();
+            enemyType = rand < 0.4 ? types[0] : rand < 0.8 ? types[1] : types[2]; // 40% scouts, 40% soldiers, 20% heavy
+        } else if (this.wave.current <= 12) {
+            const rand = Math.random();
+            enemyType = rand < 0.2 ? types[0] : rand < 0.5 ? types[1] : rand < 0.8 ? types[2] : types[3]; // 20% scouts, 30% soldiers, 30% heavy, 20% elite
+        } else {
+            const rand = Math.random();
+            enemyType = rand < 0.1 ? types[0] : rand < 0.3 ? types[1] : rand < 0.6 ? types[2] : types[3]; // 10% scouts, 20% soldiers, 30% heavy, 40% elite
+        }
+        
+        // Wave scaling multipliers
+        const waveMultiplier = 1 + (this.wave.current - 1) * 0.15;
+        const speedBonus = Math.min(0.025, this.wave.current * 0.003);
+        
         const androidGroup = new THREE.Group();
+        const s = enemyType.size;
         
         const torso = new THREE.Mesh(
-            new THREE.BoxGeometry(1.0, 1.5, 0.6),
-            new THREE.MeshLambertMaterial({ color: 0x666666 })
+            new THREE.BoxGeometry(1.0 * s, 1.5 * s, 0.6 * s),
+            new THREE.MeshLambertMaterial({ color: enemyType.color })
         );
-        torso.position.y = 0.2;
+        torso.position.y = 0.2 * s;
         torso.name = 'torso';
         androidGroup.add(torso);
         
         const head = new THREE.Mesh(
-            new THREE.BoxGeometry(0.7, 0.7, 0.7),
-            new THREE.MeshLambertMaterial({ color: 0x888888 })
+            new THREE.BoxGeometry(0.7 * s, 0.7 * s, 0.7 * s),
+            new THREE.MeshLambertMaterial({ color: enemyType.color })
         );
-        head.position.y = 1.1;
+        head.position.y = 1.1 * s;
         head.name = 'head';
         androidGroup.add(head);
         
         const leftArm = new THREE.Mesh(
-            new THREE.BoxGeometry(0.3, 1.2, 0.3),
-            new THREE.MeshLambertMaterial({ color: 0x555555 })
+            new THREE.BoxGeometry(0.3 * s, 1.2 * s, 0.3 * s),
+            new THREE.MeshLambertMaterial({ color: enemyType.color })
         );
-        leftArm.position.set(-0.7, 0.2, 0);
+        leftArm.position.set(-0.7 * s, 0.2 * s, 0);
         leftArm.name = 'leftArm';
         androidGroup.add(leftArm);
         
         const rightArm = new THREE.Mesh(
-            new THREE.BoxGeometry(0.3, 1.2, 0.3),
-            new THREE.MeshLambertMaterial({ color: 0x555555 })
+            new THREE.BoxGeometry(0.3 * s, 1.2 * s, 0.3 * s),
+            new THREE.MeshLambertMaterial({ color: enemyType.color })
         );
-        rightArm.position.set(0.7, 0.2, 0);
+        rightArm.position.set(0.7 * s, 0.2 * s, 0);
         rightArm.name = 'rightArm';
         androidGroup.add(rightArm);
         
         const leftLeg = new THREE.Mesh(
-            new THREE.BoxGeometry(0.4, 1.3, 0.4),
-            new THREE.MeshLambertMaterial({ color: 0x444444 })
+            new THREE.BoxGeometry(0.4 * s, 1.3 * s, 0.4 * s),
+            new THREE.MeshLambertMaterial({ color: enemyType.color })
         );
-        leftLeg.position.set(-0.3, -1.0, 0);
+        leftLeg.position.set(-0.3 * s, -1.0 * s, 0);
         leftLeg.name = 'leftLeg';
         androidGroup.add(leftLeg);
         
         const rightLeg = new THREE.Mesh(
-            new THREE.BoxGeometry(0.4, 1.3, 0.4),
-            new THREE.MeshLambertMaterial({ color: 0x444444 })
+            new THREE.BoxGeometry(0.4 * s, 1.3 * s, 0.4 * s),
+            new THREE.MeshLambertMaterial({ color: enemyType.color })
         );
-        rightLeg.position.set(0.3, -1.0, 0);
+        rightLeg.position.set(0.3 * s, -1.0 * s, 0);
         rightLeg.name = 'rightLeg';
         androidGroup.add(rightLeg);
         
         const eye1 = new THREE.Mesh(
-            new THREE.SphereGeometry(0.08),
+            new THREE.SphereGeometry(0.08 * s),
             new THREE.MeshBasicMaterial({ color: 0xff0000 })
         );
-        eye1.position.set(-0.15, 1.15, 0.35);
+        eye1.position.set(-0.15 * s, 1.15 * s, 0.35 * s);
         androidGroup.add(eye1);
         
         const eye2 = new THREE.Mesh(
-            new THREE.SphereGeometry(0.08),
+            new THREE.SphereGeometry(0.08 * s),
             new THREE.MeshBasicMaterial({ color: 0xff0000 })
         );
-        eye2.position.set(0.15, 1.15, 0.35);
+        eye2.position.set(0.15 * s, 1.15 * s, 0.35 * s);
         androidGroup.add(eye2);
+        
+        // Android antenna
+        const antenna = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.02 * s, 0.02 * s, 0.3 * s),
+            new THREE.MeshLambertMaterial({ color: 0x888888 })
+        );
+        antenna.position.set(0, 1.6 * s, 0);
+        androidGroup.add(antenna);
+        
+        // Chest panel
+        const panel = new THREE.Mesh(
+            new THREE.BoxGeometry(0.6 * s, 0.4 * s, 0.05 * s),
+            new THREE.MeshLambertMaterial({ color: 0x222222 })
+        );
+        panel.position.set(0, 0.3 * s, 0.31 * s);
+        androidGroup.add(panel);
+        
+        // Joint connectors
+        const joints = [
+            { pos: [-0.5 * s, 0.8 * s, 0], size: 0.1 * s }, // left shoulder
+            { pos: [0.5 * s, 0.8 * s, 0], size: 0.1 * s },  // right shoulder
+            { pos: [-0.15 * s, -0.6 * s, 0], size: 0.08 * s }, // left hip
+            { pos: [0.15 * s, -0.6 * s, 0], size: 0.08 * s }   // right hip
+        ];
+        
+        joints.forEach(joint => {
+            const connector = new THREE.Mesh(
+                new THREE.SphereGeometry(joint.size),
+                new THREE.MeshLambertMaterial({ color: 0x333333 })
+            );
+            connector.position.set(joint.pos[0], joint.pos[1], joint.pos[2]);
+            androidGroup.add(connector);
+        });
         
         const enemy = {
             mesh: androidGroup,
-            health: 90 + (this.wave.current * 25),
-            maxHealth: 90 + (this.wave.current * 25),
-            speed: 0.055 + (this.wave.current * 0.012),
+            type: enemyType.name,
+            health: Math.floor(enemyType.health * waveMultiplier),
+            maxHealth: Math.floor(enemyType.health * waveMultiplier),
+            speed: enemyType.speed + speedBonus,
+            damage: Math.floor(enemyType.damage * Math.min(1.8, waveMultiplier)),
             lastAttack: 0,
             lastShot: 0,
-            fireRate: 1200 - (this.wave.current * 75),
+            fireRate: enemyType.fireRate - Math.min(400, this.wave.current * 25),
             parts: { head: true, leftArm: true, rightArm: true, leftLeg: true, rightLeg: true }
         };
         
         enemy.mesh.position.set(
             (Math.random() - 0.5) * 300,
-            1.25,
+            1.25 * s,
             (Math.random() - 0.5) * 300
         );
         
@@ -708,7 +770,7 @@ class Game {
                 // Melee attack if close
                 if (distToPlayer < 3 && Date.now() - enemy.lastAttack > 600) {
                     enemy.lastAttack = Date.now();
-                    this.takeDamage(25 + this.wave.current * 3);
+                    this.takeDamage(enemy.damage);
                 }
             }
         });
@@ -727,7 +789,7 @@ class Game {
             direction: direction.clone(),
             speed: 0.8,
             life: 2000,
-            damage: 18 + this.wave.current * 3
+            damage: enemy.damage
         };
         
         const geometry = new THREE.BufferGeometry();
