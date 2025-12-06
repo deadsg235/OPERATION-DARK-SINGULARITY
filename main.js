@@ -668,7 +668,7 @@ class Game {
             mesh: androidGroup,
             health: 90 + (this.wave.current * 25),
             maxHealth: 90 + (this.wave.current * 25),
-            speed: 0.04 + (this.wave.current * 0.008),
+            speed: 0.055 + (this.wave.current * 0.012),
             lastAttack: 0,
             lastShot: 0,
             fireRate: 1200 - (this.wave.current * 75),
