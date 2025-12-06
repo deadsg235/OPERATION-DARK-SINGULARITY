@@ -231,7 +231,6 @@ class Game {
         this.weaponSway.y -= 0.03;
         this.weaponSway.x += (Math.random() - 0.5) * 0.015;
         
-        this.createMuzzleFlash();
         this.screenShake();
         
         const raycaster = new THREE.Raycaster();
@@ -258,21 +257,7 @@ class Game {
         }
     }
     
-    createMuzzleFlash() {
-        const flash = new THREE.Mesh(
-            new THREE.SphereGeometry(0.4),
-            new THREE.MeshBasicMaterial({ color: 0xffff88, transparent: true, opacity: 0.9 })
-        );
-        
-        const flashPos = this.camera.position.clone();
-        const forward = new THREE.Vector3(0, 0, -1);
-        forward.applyQuaternion(this.camera.quaternion);
-        flashPos.add(forward.multiplyScalar(1.8));
-        
-        flash.position.copy(flashPos);
-        this.scene.add(flash);
-        setTimeout(() => this.scene.remove(flash), 60);
-    }
+
     
     createBulletTrail(start, direction) {
         const end = start.clone().add(direction.clone().multiplyScalar(150));
