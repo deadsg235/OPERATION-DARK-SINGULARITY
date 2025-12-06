@@ -9,14 +9,16 @@ class Game {
         this.world = new CANNON.World();
         
         this.player = { 
-            health: 100, maxHealth: 100, score: 0, ammo: 30, maxAmmo: 30, 
+            health: 100, maxHealth: 100, score: 0, ammo: 6, maxAmmo: 6, 
             shield: 100, maxShield: 100, weapon: 0, kills: 0, speed: 0.4
         };
         
         this.weapons = [
-            { name: 'Plasma Rifle', damage: 45, fireRate: 80, maxAmmo: 30, reloadTime: 1800, color: 0x444444 },
-            { name: 'Ion Cannon', damage: 120, fireRate: 400, maxAmmo: 6, reloadTime: 2500, color: 0x8B4513 },
-            { name: 'Pulse SMG', damage: 28, fireRate: 50, maxAmmo: 50, reloadTime: 1200, color: 0x2F4F4F }
+            { name: 'Heavy Revolver', damage: 120, fireRate: 600, maxAmmo: 6, reloadTime: 2800, color: 0x333333, recoil: 0.1, shake: 0.2, trailColor: 0xffffff },
+            { name: 'Assault Rifle', damage: 55, fireRate: 120, maxAmmo: 30, reloadTime: 2200, color: 0x444444, recoil: 0.04, shake: 0.12, trailColor: 0x00ffff },
+            { name: 'Heavy Shotgun', damage: 180, fireRate: 800, maxAmmo: 8, reloadTime: 3500, color: 0x8B4513, recoil: 0.08, shake: 0.25, trailColor: 0xff8800, pellets: 6 },
+            { name: 'Plasma SMG', damage: 35, fireRate: 60, maxAmmo: 45, reloadTime: 1500, color: 0x2F4F4F, recoil: 0.02, shake: 0.08, trailColor: 0x88ff00 },
+            { name: 'Rail Cannon', damage: 300, fireRate: 1500, maxAmmo: 5, reloadTime: 4000, color: 0x660066, recoil: 0.12, shake: 0.35, trailColor: 0xff00ff }
         ];
         
         this.wave = { current: 1, enemiesLeft: 0, totalEnemies: 8, waveActive: false, betweenWaves: false };
@@ -24,6 +26,7 @@ class Game {
         this.enemyLasers = [];
         this.powerups = [];
         this.particles = [];
+        this.bulletTrails = [];
         this.keys = {};
         this.mouse = { x: 0, y: 0 };
         this.locked = false;
@@ -97,26 +100,63 @@ class Game {
         
         const weapon = this.weapons[this.player.weapon];
         
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(0.15, 0.4, 1.4),
-            new THREE.MeshLambertMaterial({ color: weapon.color })
-        );
-        body.position.set(0.4, -0.4, -0.9);
+        if (weapon.name === 'Heavy Revolver') {
+            // Revolver cylinder
+            const cylinder = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.08, 0.08, 0.3),
+                new THREE.MeshLambertMaterial({ color: weapon.color })
+            );
+            cylinder.rotation.z = Math.PI / 2;
+            cylinder.position.set(0.4, -0.3, -0.7);
+            
+            // Revolver barrel
+            const barrel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.03, 0.04, 0.8),
+                new THREE.MeshLambertMaterial({ color: 0x222222 })
+            );
+            barrel.rotation.z = Math.PI / 2;
+            barrel.position.set(0.4, -0.25, -1.1);
+            
+            // Revolver grip
+            const grip = new THREE.Mesh(
+                new THREE.BoxGeometry(0.06, 0.35, 0.12),
+                new THREE.MeshLambertMaterial({ color: 0x2a1810 })
+            );
+            grip.position.set(0.38, -0.55, -0.5);
+            
+            // Trigger guard
+            const guard = new THREE.Mesh(
+                new THREE.TorusGeometry(0.06, 0.01, 8, 16),
+                new THREE.MeshLambertMaterial({ color: weapon.color })
+            );
+            guard.rotation.x = Math.PI / 2;
+            guard.position.set(0.38, -0.4, -0.5);
+            
+            this.weaponGroup.add(cylinder, barrel, grip, guard);
+        } else {
+            // Standard weapon design
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.15, 0.4, 1.4),
+                new THREE.MeshLambertMaterial({ color: weapon.color })
+            );
+            body.position.set(0.4, -0.4, -0.9);
+            
+            const barrel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.04, 0.05, 1.0),
+                new THREE.MeshLambertMaterial({ color: 0x222222 })
+            );
+            barrel.rotation.z = Math.PI / 2;
+            barrel.position.set(0.4, -0.25, -1.4);
+            
+            const grip = new THREE.Mesh(
+                new THREE.BoxGeometry(0.08, 0.3, 0.15),
+                new THREE.MeshLambertMaterial({ color: 0x333333 })
+            );
+            grip.position.set(0.38, -0.6, -0.6);
+            
+            this.weaponGroup.add(body, barrel, grip);
+        }
         
-        const barrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.04, 0.05, 1.0),
-            new THREE.MeshLambertMaterial({ color: 0x222222 })
-        );
-        barrel.rotation.z = Math.PI / 2;
-        barrel.position.set(0.4, -0.25, -1.4);
-        
-        const grip = new THREE.Mesh(
-            new THREE.BoxGeometry(0.08, 0.3, 0.15),
-            new THREE.MeshLambertMaterial({ color: 0x333333 })
-        );
-        grip.position.set(0.38, -0.6, -0.6);
-        
-        this.weaponGroup.add(body, barrel, grip);
         this.camera.add(this.weaponGroup);
     }
     
@@ -207,9 +247,11 @@ class Game {
     updateWeaponTransform() {
         if (!this.weaponGroup) return;
         
-        const bobAmount = Math.sin(this.walkBob) * 0.02;
-        this.weaponSway.x *= 0.94;
-        this.weaponSway.y *= 0.94;
+        const bobAmount = Math.sin(this.walkBob) * 0.025;
+        const swayDamping = 0.88; // Slower recovery for weightier feel
+        
+        this.weaponSway.x *= swayDamping;
+        this.weaponSway.y *= swayDamping;
         
         this.weaponGroup.position.set(
             0.2 + this.weaponSway.x,
@@ -217,7 +259,9 @@ class Game {
             -0.5
         );
         
-        this.weaponGroup.rotation.z = this.weaponSway.x * 0.3;
+        // More pronounced weapon rotation
+        this.weaponGroup.rotation.z = this.weaponSway.x * 0.5;
+        this.weaponGroup.rotation.x = this.weaponSway.y * 0.3;
     }
     
     shoot() {
@@ -228,66 +272,90 @@ class Game {
         this.player.ammo--;
         this.updateUI();
         
-        this.weaponSway.y -= 0.03;
-        this.weaponSway.x += (Math.random() - 0.5) * 0.015;
+        // Heavy weapon recoil
+        this.weaponSway.y -= weapon.recoil;
+        this.weaponSway.x += (Math.random() - 0.5) * weapon.recoil * 0.5;
         
-        this.screenShake();
+        // Weapon-specific screen shake
+        this.screenShake(weapon.shake);
         
-        const raycaster = new THREE.Raycaster();
-        const direction = new THREE.Vector3(0, 0, -1);
-        direction.applyQuaternion(this.camera.quaternion);
-        raycaster.set(this.camera.position, direction);
-        
-        this.createBulletTrail(this.camera.position, direction);
-        
-        const allEnemyMeshes = [];
-        this.enemies.forEach(enemy => {
-            enemy.mesh.traverse(child => {
-                if (child.isMesh) {
-                    child.userData.parentEnemy = enemy;
-                    allEnemyMeshes.push(child);
-                }
+        // Multiple pellets for shotgun
+        const pellets = weapon.pellets || 1;
+        for (let i = 0; i < pellets; i++) {
+            const raycaster = new THREE.Raycaster();
+            const direction = new THREE.Vector3(0, 0, -1);
+            
+            // Add spread for shotgun
+            if (pellets > 1) {
+                direction.x += (Math.random() - 0.5) * 0.2;
+                direction.y += (Math.random() - 0.5) * 0.2;
+                direction.normalize();
+            }
+            
+            direction.applyQuaternion(this.camera.quaternion);
+            raycaster.set(this.camera.position, direction);
+            
+            this.createBulletTrail(this.camera.position, direction, weapon.trailColor);
+            
+            const allEnemyMeshes = [];
+            this.enemies.forEach(enemy => {
+                enemy.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        child.userData.parentEnemy = enemy;
+                        allEnemyMeshes.push(child);
+                    }
+                });
             });
-        });
-        
-        const intersects = raycaster.intersectObjects(allEnemyMeshes);
-        if (intersects.length > 0) {
-            const enemy = intersects[0].object.userData.parentEnemy;
-            if (enemy) this.hitEnemy(enemy, weapon.damage, intersects[0].point);
+            
+            const intersects = raycaster.intersectObjects(allEnemyMeshes);
+            if (intersects.length > 0) {
+                const enemy = intersects[0].object.userData.parentEnemy;
+                if (enemy) this.hitEnemy(enemy, weapon.damage, intersects[0].point);
+            }
         }
     }
     
 
     
-    createBulletTrail(start, direction) {
-        const end = start.clone().add(direction.clone().multiplyScalar(150));
+    createBulletTrail(start, direction, color = 0x00ffff) {
+        const end = start.clone().add(direction.clone().multiplyScalar(200));
         
         const geometry = new THREE.BufferGeometry();
         geometry.setFromPoints([start, end]);
         
-        const trail = new THREE.Line(
-            geometry,
-            new THREE.LineBasicMaterial({ 
-                color: 0x00ffff, 
-                transparent: true, 
-                opacity: 0.6,
-                linewidth: 2
-            })
-        );
+        const trail = {
+            mesh: new THREE.Line(
+                geometry,
+                new THREE.LineBasicMaterial({ 
+                    color: color, 
+                    transparent: true, 
+                    opacity: 0.9,
+                    linewidth: 3
+                })
+            ),
+            life: 3000,
+            maxLife: 3000
+        };
         
-        this.scene.add(trail);
-        setTimeout(() => this.scene.remove(trail), 80);
+        this.scene.add(trail.mesh);
+        this.bulletTrails.push(trail);
     }
     
-    screenShake() {
-        const intensity = 0.1;
-        this.camera.position.x += (Math.random() - 0.5) * intensity;
-        this.camera.position.y += (Math.random() - 0.5) * intensity;
+    screenShake(intensity = 0.1) {
+        const shakeX = (Math.random() - 0.5) * intensity;
+        const shakeY = (Math.random() - 0.5) * intensity;
+        
+        this.camera.position.x += shakeX;
+        this.camera.position.y += shakeY;
+        
+        // Camera rotation shake
+        this.camera.rotation.z += (Math.random() - 0.5) * intensity * 0.1;
         
         setTimeout(() => {
-            this.camera.position.x -= (Math.random() - 0.5) * intensity;
-            this.camera.position.y -= (Math.random() - 0.5) * intensity;
-        }, 80);
+            this.camera.position.x -= shakeX;
+            this.camera.position.y -= shakeY;
+            this.camera.rotation.z = 0;
+        }, 120);
     }
     
     hitEnemy(enemy, damage, hitPoint) {
@@ -669,6 +737,7 @@ class Game {
         this.updateEnemyLasers();
         this.updatePowerups();
         this.updateParticles();
+        this.updateBulletTrails();
         this.world.step(1/60);
         
         this.renderer.render(this.scene, this.camera);
@@ -702,6 +771,22 @@ class Game {
             if (particle.life <= 0) {
                 this.scene.remove(particle.mesh);
                 this.particles.splice(i, 1);
+            }
+        }
+    }
+    
+    updateBulletTrails() {
+        for (let i = this.bulletTrails.length - 1; i >= 0; i--) {
+            const trail = this.bulletTrails[i];
+            trail.life -= 16;
+            
+            // Fade out over time
+            const fadeRatio = trail.life / trail.maxLife;
+            trail.mesh.material.opacity = fadeRatio * 0.9;
+            
+            if (trail.life <= 0) {
+                this.scene.remove(trail.mesh);
+                this.bulletTrails.splice(i, 1);
             }
         }
     }
