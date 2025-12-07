@@ -27,6 +27,8 @@ class Game {
         this.powerups = [];
         this.particles = [];
         this.bulletTrails = [];
+        this.squadLeader = null;
+        this.lastTacticUpdate = 0;
         this.keys = {};
         this.mouse = { x: 0, y: 0 };
         this.locked = false;
@@ -510,7 +512,18 @@ class Game {
         // Play impact sound
         this.playImpactSound(isHeadshot);
         
+        // Mark damage time for AI reactions
+        enemy.lastDamageTime = Date.now();
+        
         if (enemy.health <= 0) {
+            // Squad reacts to member death
+            this.enemies.forEach(ally => {
+                if (ally !== enemy && ally.mesh.position.distanceTo(enemy.mesh.position) < 30) {
+                    ally.aiState = 'aggressive';
+                    ally.fireRate = Math.max(200, ally.fireRate * 0.7); // Increase fire rate
+                }
+            });
+            
             if (isHeadshot) {
                 this.headshotKillAnimation(enemy);
             } else {
@@ -867,7 +880,13 @@ class Game {
             lastAttack: 0,
             lastShot: 0,
             fireRate: enemyType.fireRate - Math.min(400, this.wave.current * 25),
-            parts: { head: true, leftArm: true, rightArm: true, leftLeg: true, rightLeg: true }
+            parts: { head: true, leftArm: true, rightArm: true, leftLeg: true, rightLeg: true },
+            aiState: 'patrol',
+            tacticalRole: 'assault',
+            flankTarget: null,
+            suppressionTarget: null,
+            lastDamageTime: 0,
+            retreatTimer: 0
         };
         
         enemy.mesh.position.set(
@@ -882,20 +901,29 @@ class Game {
     }
     
     updateEnemies() {
+        // Update squad tactics every 2 seconds
+        if (Date.now() - this.lastTacticUpdate > 2000) {
+            this.updateSquadTactics();
+            this.lastTacticUpdate = Date.now();
+        }
+        
         this.enemies.forEach(enemy => {
             const distToPlayer = enemy.mesh.position.distanceTo(this.camera.position);
             
-            if (distToPlayer < 40) {
-                const direction = new THREE.Vector3()
-                    .subVectors(this.camera.position, enemy.mesh.position)
-                    .normalize()
-                    .multiplyScalar(enemy.speed);
-                
-                enemy.mesh.position.add(direction);
-                enemy.mesh.lookAt(this.camera.position);
+            // Update AI state based on distance and health
+            if (enemy.health < enemy.maxHealth * 0.3 && enemy.aiState !== 'retreat') {
+                enemy.aiState = 'retreat';
+                enemy.retreatTimer = Date.now();
+            } else if (enemy.retreatTimer > 0 && Date.now() - enemy.retreatTimer > 3000) {
+                enemy.aiState = 'assault';
+                enemy.retreatTimer = 0;
+            }
+            
+            if (distToPlayer < 80) {
+                this.executeEnemyTactics(enemy, distToPlayer);
                 
                 // Shoot red lasers at player
-                if (distToPlayer < 30 && distToPlayer > 3 && Date.now() - enemy.lastShot > enemy.fireRate) {
+                if (distToPlayer < 60 && distToPlayer > 3 && Date.now() - enemy.lastShot > enemy.fireRate) {
                     enemy.lastShot = Date.now();
                     this.enemyShoot(enemy);
                 }
@@ -907,6 +935,116 @@ class Game {
                 }
             }
         });
+    }
+    
+    updateSquadTactics() {
+        if (this.enemies.length === 0) return;
+        
+        // Assign squad leader (highest health elite/heavy)
+        this.squadLeader = this.enemies.reduce((leader, enemy) => {
+            if (!leader) return enemy;
+            const leaderPriority = (leader.type === 'elite' ? 4 : leader.type === 'heavy' ? 3 : leader.type === 'soldier' ? 2 : 1) + leader.health * 0.01;
+            const enemyPriority = (enemy.type === 'elite' ? 4 : enemy.type === 'heavy' ? 3 : enemy.type === 'soldier' ? 2 : 1) + enemy.health * 0.01;
+            return enemyPriority > leaderPriority ? enemy : leader;
+        });
+        
+        // Assign tactical roles
+        const playerPos = this.camera.position;
+        const sortedByDistance = [...this.enemies].sort((a, b) => 
+            a.mesh.position.distanceTo(playerPos) - b.mesh.position.distanceTo(playerPos)
+        );
+        
+        sortedByDistance.forEach((enemy, index) => {
+            if (enemy === this.squadLeader) {
+                enemy.tacticalRole = 'leader';
+            } else if (index < 2 && enemy.type === 'scout') {
+                enemy.tacticalRole = 'flank';
+                // Set flank positions
+                const angle = index === 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+                const flankPos = playerPos.clone();
+                flankPos.x += Math.cos(angle) * 25;
+                flankPos.z += Math.sin(angle) * 25;
+                enemy.flankTarget = flankPos;
+            } else if (enemy.type === 'heavy') {
+                enemy.tacticalRole = 'suppression';
+            } else {
+                enemy.tacticalRole = 'assault';
+            }
+        });
+    }
+    
+    executeEnemyTactics(enemy, distToPlayer) {
+        const playerPos = this.camera.position;
+        let targetPos = playerPos.clone();
+        let moveSpeed = enemy.speed;
+        
+        switch (enemy.tacticalRole) {
+            case 'leader':
+                // Leader coordinates from medium range
+                if (distToPlayer > 25) {
+                    const direction = new THREE.Vector3()
+                        .subVectors(playerPos, enemy.mesh.position)
+                        .normalize()
+                        .multiplyScalar(moveSpeed);
+                    enemy.mesh.position.add(direction);
+                } else {
+                    // Hold position and coordinate
+                    moveSpeed = 0;
+                }
+                break;
+                
+            case 'flank':
+                // Move to flank position
+                if (enemy.flankTarget && enemy.mesh.position.distanceTo(enemy.flankTarget) > 5) {
+                    const direction = new THREE.Vector3()
+                        .subVectors(enemy.flankTarget, enemy.mesh.position)
+                        .normalize()
+                        .multiplyScalar(moveSpeed * 1.2);
+                    enemy.mesh.position.add(direction);
+                } else {
+                    // Flank achieved, advance on player
+                    const direction = new THREE.Vector3()
+                        .subVectors(playerPos, enemy.mesh.position)
+                        .normalize()
+                        .multiplyScalar(moveSpeed);
+                    enemy.mesh.position.add(direction);
+                }
+                break;
+                
+            case 'suppression':
+                // Heavy units provide covering fire from distance
+                if (distToPlayer > 35) {
+                    const direction = new THREE.Vector3()
+                        .subVectors(playerPos, enemy.mesh.position)
+                        .normalize()
+                        .multiplyScalar(moveSpeed * 0.7);
+                    enemy.mesh.position.add(direction);
+                } else {
+                    // Hold position for suppression
+                    moveSpeed = 0;
+                }
+                break;
+                
+            case 'assault':
+                if (enemy.aiState === 'retreat') {
+                    // Retreat to cover
+                    const retreatDir = new THREE.Vector3()
+                        .subVectors(enemy.mesh.position, playerPos)
+                        .normalize()
+                        .multiplyScalar(moveSpeed * 1.5);
+                    enemy.mesh.position.add(retreatDir);
+                } else {
+                    // Direct assault
+                    const direction = new THREE.Vector3()
+                        .subVectors(playerPos, enemy.mesh.position)
+                        .normalize()
+                        .multiplyScalar(moveSpeed);
+                    enemy.mesh.position.add(direction);
+                }
+                break;
+        }
+        
+        enemy.mesh.lookAt(playerPos);
     }
     
     enemyShoot(enemy) {
